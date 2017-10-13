@@ -4,8 +4,8 @@ from onadata.settings.common import *
 
 LOCALE_PATHS= [os.path.join(PROJECT_ROOT,'locale'),]
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
-TEMPLATE_DEBUG = os.environ.get('TEMPLATE_DEBUG', 'True') == 'True'
+# DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+# TEMPLATE_DEBUG = os.environ.get('TEMPLATE_DEBUG', 'True') == 'True'
 TEMPLATE_STRING_IF_INVALID = ''
 
 import dj_database_url
