@@ -1,0 +1,72 @@
+{% extends "fieldsight/fieldsight_base.html" %}
+{% load i18n staticfiles %}
+
+{% block page-title %}{% trans 'Add User Role In '  %}{{obj.name}}
+
+{% endblock %}
+{%block extracss %}
+    
+    <link rel="stylesheet" href="{% static 'css/bootstrap-material-design.min.css' %}">
+    
+{% endblock %}
+{% block head %}
+    <a class="btn btn-success btn-raised" href="{% url 'fieldsight:sites-list' %}">{% trans 'Sites' %}</a>
+{% endblock %}
+
+{% block content %}
+    <div class="row">
+      <div class="col-sm-6">
+          <form action="{% url 'fieldsight:add_project_staffs' pk=obj.id %}" method="POST">
+              {% csrf_token %}
+               <div class="col-sm-12">
+               {{ form.non_field_errors }}
+               </div>
+              <div class="row">
+                <div class="col-lg-6 col-sm-12">
+                     {% trans 'Select User Type'  %}
+                    {{ form.group }}
+                    {{ form.group.errors }}
+                </div>
+
+                <div class="col-lg-6 col-sm-12">
+                    {% trans 'Select User '  %}
+                    {{ form.user }}
+                    {{ form.user.errors }}
+                </div>
+                  <div class="col-lg-6 col-sm-12">
+                    {{ form.project }}
+                </div>
+            </div>
+
+              <input type="submit" class="btn btn-success btn-raised" value="Save">
+          </form>
+      </div>
+
+<div class="col-sm-6">
+      <h3>Current Users</h3>
+      <div class="currentuser-block">
+        <div class="search-current">
+          <input type="text" class="current-input" placeholder="Search">
+          <button type="submit" class="current-btn"><i class="fa fa-search" aria-hidden="true"></i></button>
+        </div>
+        <div class="current-users-list">
+          {% for role in existing_staffs %}
+          <div class="current-person">
+            <div class="user-image-current">
+              <img src="{{role.user.user_profile.profile_picture.url}}" alt="">
+            </div>
+            <div class="user-name-position">
+              <p class="cu-name">{{role.user.get_full_name}}</p>
+              <p class="cu-position">{{role.group}}</p>
+            </div>
+            <div class="clear-btn-cu .animated .slideInRight"  onclick="this.parentElement.style.display='none'">
+              <span class="closebtn-cu"><i class="fa fa-times" aria-hidden="true"></i></span>
+            </div>
+            <div class="clearfixx"></div>
+          </div>
+        {% endfor %}
+        </div>
+          </div>
+    </div>
+
+{% endblock %}

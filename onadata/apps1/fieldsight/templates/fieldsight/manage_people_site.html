@@ -304,29 +304,8 @@ vm = new ManagePeopleViewModel(pk, level, organization);
               <ul class="row">
                  
 
-          <div class="col-md-4">
-            <div class="widget-info margin-top bg-white padding">
-              <div class="widget-head">
-                <h4>Current Project Managers</h4>
-              </div>
 
-              <div class="widget-body max-513-scolling" data-bind="foreach:projectManagers">
-                <div class="project-item-wrap clearfix">
-                  <div class="project-logo">
-                    <img data-bind="attr:{src: user().profile_picture}" alt="" width="50" height="50">
-                  </div>
-                  <div class="project-basic-info">
-                    <h4 data-bind="text:user().full_name"></h4>
-                    <p data-bind="text:user().email"></p>
-                  </div>
-                  <a href="#" title="" class="btn btn-danger btn-sm project-action" data-bind="confirmClick: { message: 'Are you sure to remove this Project Manager?', click:rmrole }"><i class="la la-close"></i></a>
-                </div>
-                </div>
-                </div>
-                </div>
-
-
-            <div class="col-md-8">
+                  <div class="col-md-8">
             <div class="widget-info margin-top bg-white padding">
               <div class="widget-head">
                 <h4>Invite new project managers</h4>
@@ -389,6 +368,22 @@ vm = new ManagePeopleViewModel(pk, level, organization);
             </div>
           </div>
 
+          <div class="col-md-4">
+            <div class="widget-info margin-top bg-white padding">
+              <div class="widget-head">
+                <h4>Current Project Managers</h4>
+              </div>
+
+              <div class="widget-body max-513-scolling" data-bind="foreach:projectManagers">
+                <div class="project-item-wrap clearfix">
+                  <div class="project-logo">
+                    <img data-bind="attr:{src: user().profile_picture}" alt="" width="50" height="50">
+                  </div>
+                  <div class="project-basic-info">
+                    <h4 data-bind="text:user().full_name"></h4>
+                    <p data-bind="text:user().email"></p>
+                  </div>
+                  <a href="#" title="" class="btn btn-danger btn-sm project-action" data-bind="confirmClick: { message: 'Are you sure to remove this Project Manager?', click:rmrole }"><i class="la la-close"></i></a>
 
 
 
@@ -577,29 +572,9 @@ vm = new ManagePeopleViewModel(pk, level, organization);
             <div class="tab-pane active" id="tab001" role="tabpanel">
               <ul class="row">
                  
-          <div class="col-md-4">
-            <div class="widget-info margin-top bg-white padding">
-              <div class="widget-head">
-                <h4>Current Organization Admins</h4>
-              </div>
-
-              <div class="widget-body max-513-scolling" data-bind="foreach:admins">
-                <div class="project-item-wrap clearfix">
-                  <div class="project-logo">
-                    <img data-bind="attr:{src: user().profile_picture}" alt="" width="50" height="50">
-                  </div>
-                  <div class="project-basic-info">
-                    <h4 data-bind="text:user().full_name"></h4>
-                    <p data-bind="text:user().email"></p>
-                  </div>
-                  <a href="#" title="" class="btn btn-danger btn-sm project-action" data-bind="confirmClick: { message: 'Are you sure to remove this Organization Admin?', click:rmrole }"><i class="la la-close"></i></a>
-                  </div>
-                  </div>
-                  </div>
-                  </div>
 
 
-            <div class="col-md-8">
+                  <div class="col-md-8">
             <div class="widget-info margin-top bg-white padding">
               <div class="widget-head">
                 <h4>Invite new organization admins</h4>
@@ -650,7 +625,6 @@ vm = new ManagePeopleViewModel(pk, level, organization);
                       </span>
                     </label>
                   </li>
-
                   
                   <li class="clearfix"></li>
                 </ul>
@@ -663,6 +637,22 @@ vm = new ManagePeopleViewModel(pk, level, organization);
             </div>
           </div>
 
+          <div class="col-md-4">
+            <div class="widget-info margin-top bg-white padding">
+              <div class="widget-head">
+                <h4>Current Organization Admins</h4>
+              </div>
+
+              <div class="widget-body max-513-scolling" data-bind="foreach:admins">
+                <div class="project-item-wrap clearfix">
+                  <div class="project-logo">
+                    <img data-bind="attr:{src: user().profile_picture}" alt="" width="50" height="50">
+                  </div>
+                  <div class="project-basic-info">
+                    <h4 data-bind="text:user().full_name"></h4>
+                    <p data-bind="text:user().email"></p>
+                  </div>
+                  <a href="#" title="" class="btn btn-danger btn-sm project-action" data-bind="confirmClick: { message: 'Are you sure to remove this Organization Admin?', click:rmrole }"><i class="la la-close"></i></a>
 
 
 

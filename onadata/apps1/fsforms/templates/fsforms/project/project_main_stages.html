@@ -1,0 +1,165 @@
+{% extends "fieldsight/fieldsight_base.html" %}
+{% load i18n staticfiles %}
+{% load filters %}
+
+{% block page-title %}{% trans 'Main Stages' %}  {{obj.name}}
+{% endblock %}
+
+{% block head %}
+<a class="btn btn-danger btn-raised" href="{% url 'forms:deploy-stages' obj.pk %}">
+    {% trans 'Deploy All Stages To Sites' %}</a>
+<a class="btn btn-danger btn-raised" href="{% url 'forms:share-stages' obj.pk 1%}">
+    {% trans 'Share All Stages To Library' %}</a>
+    <a class="btn btn-success btn-raised" href="{% url 'forms:project-stage-add' obj.pk %}">
+                            {% trans 'Add New Stage' %}</a>
+{% endblock %}
+{%block extracss %}
+<style>
+    .stages-main-list {
+    background: #296fd5;
+    color: #fff;
+    padding: 10px;
+    margin-bottom: 30px;
+    text-align: center;
+    transition:all 0.2s ease-in-out;
+    -moz-transition:all 0.2s ease-in-out;
+    -webkit-transition:all 0.2s ease-in-out;
+}
+.substages-main-list{
+	background: #237dff;
+    color: #fff;
+    padding: 10px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+.stages-main-list:hover {
+    transform: translateY(-3px);
+   box-shadow: 0 0 20px rgba(174,174,174,0.6);
+   transition:all 0.2s ease-in-out;
+    -moz-transition:all 0.2s ease-in-out;
+    -webkit-transition:all 0.2s ease-in-out;
+}
+
+.clearfixxx{
+	clear: both;
+}
+
+.main-stages {
+    margin-top: 40px;
+}
+.sub-stages {
+    margin-top: 40px;
+}
+.all-above-things {
+    margin-top: 20px;
+}
+.btn {
+    display: inline-block;
+    padding: 6px 12px;
+    margin-bottom: 0;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.42857143;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    -ms-touch-action: manipulation;
+    touch-action: manipulation;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    background-image: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+.btn-primary {
+    background-color: #296fd5;
+    border-color: #296fd5;
+    color: #FFFFFF;
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active, .btn-primary.active{
+    background-color: #237dff;
+    border-color: #237dff;
+    color: #FFFFFF;
+}
+.btn-primary1 {
+    background-color: #237dff;
+    border-color: #237dff;
+    color: #FFFFFF;
+}
+.btn-primary1:hover, .btn-primary1:focus, .btn-primary1:active, .btn-primary1.active{
+    background-color: #296fd5;
+    border-color: #296fd5;
+    color: #FFFFFF;
+}
+
+.selected{
+    background: #296fd5 !important;
+    color: #fff;
+}
+.obj-forms-list-single {
+    padding: 15px 10px;
+    background: #ECECEC;
+    border-bottom: 1px solid #DADADA;
+}
+.obj-forms-list-single p {
+    margin-bottom: 0px;
+}
+.obj-forms-list-single:hover {
+    background: #237dff;
+    color: #fff;
+}
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+    <li><a href="{% url 'fieldsight:project-dashboard' obj.pk %}">{% trans 'Project Dashboard' %}</a></li>
+    <li>{% trans 'Main Stages' %}</li>
+{% endblock %}
+
+{% block content %}
+
+{% load filters %}
+
+<div class="main-stages">
+    {% for stage in objlist %}
+  <div>
+    <div class="col-md-4">
+      <div class="stages-main-list">
+          <a class="btn" href="{% url 'forms:edit-main-stage' stage.pk obj.pk 1 %}">Edit</a>
+        <h3><span>Stage:</span> <b>{{stage.order}}</b></h3>
+        <h4><span>Name:</span> <b>{{stage.name}}</b></h4>
+        <p><span>Description:</span>{{stage.description}}</p>
+           <a class="btn btn-success btn-raised" href="{% url 'forms:stages-detail' stage.pk %}">
+                            {% trans 'List Sub Stages' %}({{stage.sub_stage_count}})</a>
+      </div>
+
+    </div>
+  </div>
+    {% endfor %}
+    <form method="post" action="{% url 'forms:project-stage-add' obj.pk %}">
+          <div>
+      <div>{{ form.non_field_errors }}{% csrf_token %}</div>
+    <div class="col-md-4">
+      <div class="stages-main-list">
+          {% for field in form %}
+               <div class="col-sm-12 registration_field">
+               {{ form.non_field_errors }}
+               </div>
+        <h3><span>{{ field.label }}</span> <b>{{ field }}</b>{{ field.errors }}</h3>
+            {% endfor %}
+
+           <button class="btn btn-lg btn-primary registration__action" type="submit" >{% trans 'Save' %}</button>
+      </div>
+
+    </div>
+  </div>
+ </form>
+
+
+</div>
+
+
+{% endblock %}
