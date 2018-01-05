@@ -1948,3 +1948,17 @@ class ExcelBulkSiteSample(ProjectRoleMixin, View):
         wb.save(response)
         return response
 
+class ChangeLanguage(View):
+    def get(self, request):
+        return render(request, 'fieldsight/change_language.html')
+    def post(self, request):      
+        language = request.POST.get('ln_code')
+        translation.activate(language)
+        request.session[translation.LANGUAGE_SESSION_KEY] = language
+        print request.session.__dict__
+        return HttpResponse("Success")
+
+class Settings(View):
+    def get(self, request):
+        return render(request, 'fieldsight/settings.html')
+

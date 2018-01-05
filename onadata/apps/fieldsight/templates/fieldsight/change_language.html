@@ -1,0 +1,40 @@
+{% extends "fieldsight/fieldsight_base.html" %}
+{% load i18n staticfiles %}
+{% load filters %}
+
+{% block page-title %}{% trans 'Forms Library' %}{% endblock %}
+
+
+{% block content %}
+{% load pagination_tags %}
+{% load sorting_tags %}
+{% load fs_filters %}
+<div id="main-content" class="padding">
+                <nav aria-label="breadcrumb" role="navigation">
+					<ol class="breadcrumb">
+						<li class="breadcrumb-item"><a href="#">{{ project.name }}</a></li>
+						<li class="breadcrumb-item active" aria-current="page">{% trans 'Change Language' %}</li>
+					</ol>
+				</nav>
+				<section class="panel">
+          <form action="{% url 'set_language' %}" method="post">
+    {% csrf_token %}
+    <input name="next" type="hidden" value="{{ redirect_to }}" />
+    <select name="language">
+        {% get_language_info_list for LANGUAGES as languages %}
+        {% for language in languages %}
+            <option value="{{ language.code }}"{% if language.code == LANGUAGE_CODE %} selected="selected"{% endif %}>
+                {{ language.name_local }} ({{ language.code }})
+            </option>
+        {% endfor %}
+    </select>
+    <input type="submit" value="Go" />
+</form>
+     
+
+
+
+        </section>
+
+			</div>
+{% endblock %}
