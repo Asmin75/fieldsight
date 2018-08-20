@@ -26,7 +26,9 @@ import os, tempfile, zipfile
 from django.conf import settings
 from django.http import HttpResponse
 from django.core.servers.basehttp import FileWrapper
-
+from openpyxl import Workbook
+from openpyxl.worksheet.write_only import WriteOnlyCell
+from openpyxl.styles import Font
 
 def get_images_for_site_all(site_id):
     return settings.MONGO_DB.instances.aggregate([{"$match":{"fs_site" : site_id}}, {"$unwind":"$_attachments"}, {"$project" : {"_attachments":1}},{ "$sort" : { "_id": -1 }}])
@@ -338,20 +340,29 @@ def siteDetailsGenerator(project, sites, ws):
                 
                 generate(meta['project_id'], site_map, meta, meta_ref_sites.get(meta['question_name'], []), meta.get('metas'))
         
-        row_num = 0
+        
         font_style = xlwt.XFStyle()
         font_style.font.bold = True
+
+        header_row=[]
         for col_num in range(len(header_columns)):
-            ws.write(row_num, col_num, header_columns[col_num]['name'], font_style)
-        row_num += 1
+            header_cell=WriteOnlyCell(ws, value=header_columns[col_num]['name'])
+            header_cell=Font(name='Courier', size=16)
+            header_row.append(header_cell)
+            
+        ws.append(header_row)
+        
 
         font_style_unbold = xlwt.XFStyle()
         font_style_unbold.font.bold = False
         
+
         for key,site in site_list.iteritems():
+        #    ws.append([site.get(header_columns[col_num]['id']) for col_num in range(len(header_columns))])
+            row=[]
             for col_num in range(len(header_columns)):
-                ws.write(row_num, col_num, site.get(header_columns[col_num]['id'], ""), font_style_unbold)
-            row_num += 1
+                rows.append(site.get(header_columns[col_num]['id'], ""))    
+            ws.append(row)
         return True, 'success'
 
     except Exception as e:
@@ -368,8 +379,9 @@ def generateSiteDetailsXls(task_prog_obj_id, source_user, project_id, region_id)
 
     try:
         buffer = BytesIO()
-        wb = xlwt.Workbook(encoding='utf-8')
-        ws = wb.add_sheet('Sites')
+        wb = Workbook(write_only = True)
+        ws = wb.active
+        ws.title('Sites Detail')
         sites = project.sites.all().order_by('identifier')
         if region_id:
             if region_id == "0":
@@ -385,7 +397,7 @@ def generateSiteDetailsXls(task_prog_obj_id, source_user, project_id, region_id)
         wb.save(buffer)
         buffer.seek(0)
         xls = buffer.getvalue()
-        xls_url = default_storage.save(project.name + '/sites/'+project.name+'-details.xls', ContentFile(xls))
+        xls_url = default_storage.save(project.name + '/sites/'+project.name+'-details.xlsx', ContentFile(xls))
         buffer.close()
         task.file.name = xls_url
 
@@ -404,6 +416,7 @@ def generateSiteDetailsXls(task_prog_obj_id, source_user, project_id, region_id)
                                    content_object=project, recipient=source_user,
                                    extra_message="@error " + u'{}'.format(e.message))
         buffer.close()
+
 
 
 @task()
