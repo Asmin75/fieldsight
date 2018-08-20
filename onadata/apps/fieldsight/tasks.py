@@ -446,7 +446,9 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
         new_enddate = end + datetime.timedelta(days=1)
 
         forms = FieldSightXF.objects.select_related('xf').filter(pk__in=fs_ids, is_survey=False, is_deleted=False).prefetch_related(Prefetch('project_form_instances', queryset=FInstance.objects.select_related('instance').filter(site_id__in=sites, date__range=[new_startdate, new_enddate]))).order_by('-is_staged', 'is_scheduled')
-        wb = xlwt.Workbook(encoding='utf-8')
+        wb = Workbook()
+        ws_site_details = wb.active
+        ws_site_details.title = "Site Details"
         form_id = 0
         form_names=[]
         
@@ -467,10 +469,9 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
             for ch in ["[", "]", "*", "?", ":", "/"]:
                 if ch in sheet_name:
                     sheet_name=sheet_name.replace(ch,"_")
-            
-            ws = wb.add_sheet(sheet_name)
+            ws=wb.create_sheet(title=sheet_name)
             row_num = 1
-            font_style = xlwt.XFStyle()
+
             head_columns = [{'question_name':'No Submission','question_label':'No Submission'}]
             repeat_questions = []
             repeat_answers = {}
@@ -496,55 +497,52 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
                         head_columns = [{'question_name':'identifier','question_label':'identifier'}, {'question_name':'name','question_label':'name'}, {'question_name':'status','question_label':'status'}] + questions  
 
                     for col_num in range(len(head_columns)):
-                        ws.write(row_num, col_num, answers[head_columns[col_num]['question_name']], font_style)
+                        ws.cell(row=row_num, column=col_num, answers[head_columns[col_num]['question_name']])
                     
                     row_num += 1
             
 
-            font_style.font.bold = True
+            
 
             for col_num in range(len(head_columns)):
-                ws.write(0, col_num, head_columns[col_num]['question_label'], font_style)
+                ws.cell(row=0, column=col_num, head_columns[col_num]['question_label'])
             
-            font_style.font.bold = False
+            
             if repeat_questions:
                 max_repeats = 0
-                wr = wb.add_sheet(str(form_id)+"repeated")
+                wr=wb.create_sheet(title=str(form_id)+"repeated")
                 row_num = 1
-                font_style = xlwt.XFStyle()
+                
                 
                 for k, site_r_answers in repeat_answers.items():
                     col_no = 2
-                    wr.write(row_num, 1, k, font_style)
-                    wr.write(row_num, 2, site_r_answers['name'], font_style)
+                    wr.cell(row=row_num, column=1, k)
+                    wr.cell(row=row_num, column=2, site_r_answers['name'])
                     
                     if max_repeats < len(site_r_answers['answers']):
                         max_repeats = len(site_r_answers['answers'])
 
                     for answer in site_r_answers['answers']:
                         for col_num in range(len(repeat_questions)):
-                            wr.write(row_num, col_no + col_num, answer[repeat_questions[col_num]['question_name']], font_style)
+                            ws.cell(row=row_num, column=col_num, value=answers[head_columns[col_num]['question_name']])
                             col_no += 1
 
                 row_num += 1
-            
-
-                font_style.font.bold = True
-                wr.write(row_num, 1, 'Identifier', font_style)
-                wr.write(row_num, 2, 'name', font_style)
+                wr.cell(row=row_num, column=1, 'Identifier')
+                wr.cell(row=row_num, column=2, 'name')
                 col_no=2
 
                 #for loop needed.
                 for m_repeats in range(max_repeats):
                     for col_num in range(len(head_columns)):
-                        wr.write(0, col_num, head_columns[col_num]['question_label'], font_style)    
+                        ws.cell(row=0, column=col_num, value=head_columns[col_num]['question_label'])
                         col_no += 1 
         if not forms:
             ws = wb.add_sheet('No Forms')
-        ws=wb.add_sheet('Site Details')
+        
 
         sites = Site.objects.filter(pk__in=response_sites)
-        status, message = siteDetailsGenerator(project, sites, ws)
+        status, message = siteDetailsGenerator(project, sites, ws_site_details)
         if not status:
             raise ValueError(message)
 
