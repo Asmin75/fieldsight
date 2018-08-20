@@ -27,7 +27,7 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.core.servers.basehttp import FileWrapper
 from openpyxl import Workbook
-from openpyxl.worksheet.write_only import WriteOnlyCell
+
 from openpyxl.styles import Font
 
 def get_images_for_site_all(site_id):
@@ -346,9 +346,9 @@ def siteDetailsGenerator(project, sites, ws):
 
         header_row=[]
         for col_num in range(len(header_columns)):
-            header_cell=WriteOnlyCell(ws, value=header_columns[col_num]['name'])
-            header_cell=Font(name='Courier', size=16)
-            header_row.append(header_cell)
+            # header_cell=WriteOnlyCell(ws, value=header_columns[col_num]['name'])
+            # header_cell=Font(name='Courier', size=16)
+            header_row.append(header_columns[col_num]['name'])
             
         ws.append(header_row)
         
@@ -361,7 +361,7 @@ def siteDetailsGenerator(project, sites, ws):
         #    ws.append([site.get(header_columns[col_num]['id']) for col_num in range(len(header_columns))])
             row=[]
             for col_num in range(len(header_columns)):
-                rows.append(site.get(header_columns[col_num]['id'], ""))    
+                row.append(site.get(header_columns[col_num]['id'], ""))    
             ws.append(row)
         return True, 'success'
 
@@ -379,9 +379,9 @@ def generateSiteDetailsXls(task_prog_obj_id, source_user, project_id, region_id)
 
     try:
         buffer = BytesIO()
-        wb = Workbook(write_only = True)
+        wb = Workbook()
         ws = wb.active
-        ws.title('Sites Detail')
+        ws.title='Sites Detail'
         sites = project.sites.all().order_by('identifier')
         if region_id:
             if region_id == "0":
