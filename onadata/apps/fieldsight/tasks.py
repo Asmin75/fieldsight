@@ -452,23 +452,26 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
         form_id = 0
         form_names=[]
         
-        for form in forms:
-            form_id += 1
-            form_names.append(form.xf.title)
-            occurance = form_names.count(form.xf.title)
+        def generate_sheet_name(form_name):
+            form_names.append(form_name)
+            occurance = form_names.count(form_name)
 
-            if occurance > 1 and len(form.xf.title) > 25:
-                sheet_name = form.xf.title[:25] + ".." + "(" +str(occurance)+ ")"
-            elif occurance > 1 and len(form.xf.title) < 25:
-                sheet_name = form.xf.title + "(" +str(occurance)+ ")"
-            elif len(form.xf.title) > 29:
-                sheet_name = form.xf.title[:29] + ".."
+            if occurance > 1 and len(form_name) > 25:
+                sheet_name = form_name[:25] + ".." + "(" +str(occurance)+ ")"
+            elif occurance > 1 and len(form_name) < 25:
+                sheet_name = form_name + "(" +str(occurance)+ ")"
+            elif len(form_name) > 29:
+                sheet_name = form_name[:29] + ".."
             else:
-                sheet_name = form.xf.title
+                sheet_name = form_name
             
             for ch in ["[", "]", "*", "?", ":", "/"]:
                 if ch in sheet_name:
                     sheet_name=sheet_name.replace(ch,"_")
+
+        for form in forms:
+            form_id += 1
+            sheet_name = generate_sheet_name(form.xf.title)
             ws=wb.create_sheet(title=sheet_name)
             row_num = 1
 
@@ -509,33 +512,31 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
             if repeat_answers:
                 for k,v in repeat_answers.values()[0]['r_question_answers'].items():
                     max_repeats = 0
-                    wr=wb.create_sheet(title="repeated"+k)
-                    row_num = 1
-                    
+                    sheet_name = generate_sheet_name("Rep. "+ form.xf.title)
+                    wr=wb.create_sheet(title=sheet_name)
+                    row_num = 0
                     
                     for k, site_r_answers in repeat_answers.items():
-                        col_no = 2
-                        wr.cell(row=row_num, column=1, k)
-                        wr.cell(row=row_num, column=2, site_r_answers['name'])
                         
-                        if max_repeats < len(site_r_answers['answers']):
-                            max_repeats = len(site_r_answers['answers'])
-
                         for answer in site_r_answers['answers']:
+                            row_num += 1                        
+                            col_no = 2
+                            wr.cell(row=row_num, column=1, k)
+                            wr.cell(row=row_num, column=2, site_r_answers['name'])
+                            
                             for col_num in range(len(repeat_questions)):
                                 ws.cell(row=row_num, column=col_num, value=answers[head_columns[col_num]['question_name']])
                                 col_no += 1
 
-                    row_num += 1
-                    wr.cell(row=row_num, column=1, 'Identifier')
-                    wr.cell(row=row_num, column=2, 'name')
+
+                    wr.cell(row=0, column=1, 'Identifier')
+                    wr.cell(row=0, column=2, 'name')
                     col_no=2
 
                     #for loop needed.
-                    for m_repeats in range(max_repeats):
-                        for col_num in range(len(head_columns)):
-                            ws.cell(row=0, column=col_num, value=head_columns[col_num]['question_label'])
-                            col_no += 1 
+                    for col_num in range(len(head_columns)):
+                        ws.cell(row=0, column=col_num, value=head_columns[col_num]['question_label'])
+                        col_no += 1 
         if not forms:
             ws = wb.add_sheet('No Forms')
         
