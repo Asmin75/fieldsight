@@ -483,15 +483,13 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
                     if not formresponse.site_id in response_sites:
                         response_sites.append(formresponse.site_id)
                     
-                    questions, answers, r_questions, r_answers = parse_form_response(json.loads(form.xf.json)['children'], formresponse.instance.json, base_url, form.xf.user.username)
+                    questions, answers, r_question_answers = parse_form_response(json.loads(form.xf.json)['children'], formresponse.instance.json, base_url, form.xf.user.username)
                     answers['identifier'] = formresponse.site.identifier
                     answers['name'] = formresponse.site.name
                     answers['status'] = formresponse.get_form_status_display()
                     
-                    if r_questions:
-                        if not repeat_questions:
-                            repeat_questions = r_questions
-                        repeat_answers[formresponse.site.identifier] = {'name': formresponse.site.name, 'answers':r_answers}
+                    if r_question_answers:
+                        repeat_answers[formresponse.site.identifier] = {'name': formresponse.site.name, 'answers':r_answers, 'r_question_answers':r_question_answers}
 
                     if len([{'question_name':'identifier','question_label':'identifier'}, {'question_name':'name','question_label':'name'}] + questions) > len(head_columns):
                         head_columns = [{'question_name':'identifier','question_label':'identifier'}, {'question_name':'name','question_label':'name'}, {'question_name':'status','question_label':'status'}] + questions  
@@ -508,35 +506,36 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
                 ws.cell(row=0, column=col_num, head_columns[col_num]['question_label'])
             
             
-            if repeat_questions:
-                max_repeats = 0
-                wr=wb.create_sheet(title=str(form_id)+"repeated")
-                row_num = 1
-                
-                
-                for k, site_r_answers in repeat_answers.items():
-                    col_no = 2
-                    wr.cell(row=row_num, column=1, k)
-                    wr.cell(row=row_num, column=2, site_r_answers['name'])
+            if repeat_answers:
+                for k,v in repeat_answers.values()[0]['r_question_answers'].items():
+                    max_repeats = 0
+                    wr=wb.create_sheet(title="repeated"+k)
+                    row_num = 1
                     
-                    if max_repeats < len(site_r_answers['answers']):
-                        max_repeats = len(site_r_answers['answers'])
+                    
+                    for k, site_r_answers in repeat_answers.items():
+                        col_no = 2
+                        wr.cell(row=row_num, column=1, k)
+                        wr.cell(row=row_num, column=2, site_r_answers['name'])
+                        
+                        if max_repeats < len(site_r_answers['answers']):
+                            max_repeats = len(site_r_answers['answers'])
 
-                    for answer in site_r_answers['answers']:
-                        for col_num in range(len(repeat_questions)):
-                            ws.cell(row=row_num, column=col_num, value=answers[head_columns[col_num]['question_name']])
-                            col_no += 1
+                        for answer in site_r_answers['answers']:
+                            for col_num in range(len(repeat_questions)):
+                                ws.cell(row=row_num, column=col_num, value=answers[head_columns[col_num]['question_name']])
+                                col_no += 1
 
-                row_num += 1
-                wr.cell(row=row_num, column=1, 'Identifier')
-                wr.cell(row=row_num, column=2, 'name')
-                col_no=2
+                    row_num += 1
+                    wr.cell(row=row_num, column=1, 'Identifier')
+                    wr.cell(row=row_num, column=2, 'name')
+                    col_no=2
 
-                #for loop needed.
-                for m_repeats in range(max_repeats):
-                    for col_num in range(len(head_columns)):
-                        ws.cell(row=0, column=col_num, value=head_columns[col_num]['question_label'])
-                        col_no += 1 
+                    #for loop needed.
+                    for m_repeats in range(max_repeats):
+                        for col_num in range(len(head_columns)):
+                            ws.cell(row=0, column=col_num, value=head_columns[col_num]['question_label'])
+                            col_no += 1 
         if not forms:
             ws = wb.add_sheet('No Forms')
         
