@@ -618,12 +618,12 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
             form_id += 1
             sheet_name = generate_sheet_name(form.xf.title)
             ws=wb.create_sheet(title=sheet_name)
-            row_num = 1
-
+            
             head_columns = [{'question_name':'No Submission','question_label':'No Submission'}]
             repeat_questions = []
             repeat_answers = {}
 
+            ws.append([])
 
             for formresponse in form.project_form_instances.all():
                 
@@ -643,15 +643,17 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
                         head_columns = [{'question_name':'identifier','question_label':'identifier'}, {'question_name':'name','question_label':'name'}, {'question_name':'status','question_label':'status'}] + questions  
 
                     for col_num in range(len(head_columns)):
-                        ws.cell(row=row_num, column=col_num).value = answers[head_columns[col_num]['question_name']]
+                        row.append(site.get(answers[head_columns[col_num]['question_name']], ""))    
+                        ws.append(row)
                     
-                    row_num += 1
             
 
             
 
             for col_num in range(len(head_columns)):
-                ws.cell(row=0, column=col_num).value = head_columns[col_num]['question_label']
+                row.append(site.get(head_columns[col_num]['question_label'], ""))    
+                ws[0]=row
+
             
             
             if repeat_answers:
@@ -680,7 +682,7 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
 
                     #for loop needed.
                     for col_num in range(len(head_columns)):
-                        ws.cell(row=0, column=col_num).value = head_columns[col_num]['question_label']
+                        ws.cell(row=0, column=col_num+1).value = head_columns[col_num]['question_label']
                         col_no += 1 
         if not forms:
             ws = wb.add_sheet('No Forms')
