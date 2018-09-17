@@ -641,7 +641,7 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
 
                     if len([{'question_name':'identifier','question_label':'identifier'}, {'question_name':'name','question_label':'name'}] + questions) > len(head_columns):
                         head_columns = [{'question_name':'identifier','question_label':'identifier'}, {'question_name':'name','question_label':'name'}, {'question_name':'status','question_label':'status'}] + questions  
-
+                    row=[]
                     for col_num in range(len(head_columns)):
                         row.append(site.get(answers[head_columns[col_num]['question_name']], ""))    
                         ws.append(row)
@@ -649,6 +649,7 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
             
 
             
+            row=[]
 
             for col_num in range(len(head_columns)):
                 row.append(site.get(head_columns[col_num]['question_label'], ""))    
