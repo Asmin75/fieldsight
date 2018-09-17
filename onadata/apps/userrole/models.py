@@ -121,7 +121,15 @@ class UserRole(models.Model):
     @staticmethod
     def get_active_site_roles(user):
         return UserRole.objects.filter(user=user, ended_at=None, group__name="Site Supervisor").\
-            select_related('project', 'site', 'site__type')\
+            select_related('project', 'site', 'site__type', 'project__organization', 'project__type')\
+
+    @staticmethod
+    def get_active_site_roles_count(user):
+        return UserRole.objects.filter(user=user, ended_at=None, group__name="Site Supervisor").count()
+
+    @staticmethod
+    def get_active_site_roles_exists(user):
+        return UserRole.objects.filter(user=user, ended_at=None, group__name="Site Supervisor").exists()
 
     @staticmethod
     def get_roles_supervisor(user, project_id):
@@ -152,12 +160,13 @@ class UserRole(models.Model):
     def both_project_roles(self):
         return UserRole.objects.filter(user=self.user, group__name__in=['Project Manager', 'Reviewer'], organization=self.organization)
 
+
 @receiver(post_save, sender=UserRole)
 def create_messages(sender, instance, created,  **kwargs):
     if created and instance.site is not None and instance.group.name in ["Site Supervisor"]:
         Device = get_device_model()
         if Device.objects.filter(name=instance.user.email).exists():
-            message = {'notify_type':'Assign Site', 'site':{'name': instance.site.name, 'id': instance.site.id}}
+            message = {'notify_type':'Assign Site', 'site':{'name': instance.site.name, 'id': instance.site.id}, 'project':{'name': instance.project.name, 'id': instance.project.id}}
             try:
                 Device.objects.filter(name=instance.user.email).send_message(message)
             except:

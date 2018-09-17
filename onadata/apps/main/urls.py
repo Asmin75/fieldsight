@@ -39,7 +39,7 @@ urlpatterns = patterns(
         {'next_page': '/'}, name='auth_logout'),
     url(r'^accounts/', include('onadata.apps.main.registration_urls')),
 
-    url(r'^admin/', include(admin.site.urls)),
+    # url(r'^admin/', include(admin.site.urls)),
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
 
     # oath2_provider
@@ -193,17 +193,23 @@ urlpatterns = patterns(
         'onadata.apps.viewer.views.data_view'),
     url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)"
         "/new$", 'onadata.apps.viewer.views.create_export'),
-    url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)/(?P<is_project>[\d+^/]+)/(?P<id>[\d+^/]+)"
+    url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)/(?P<is_project>[\d+]+)/(?P<id>[\d+]+)"
+        "/new$", 'onadata.apps.viewer.views.create_export'),
+    url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)/(?P<is_project>[\d+]+)/(?P<id>[\d+]+)/(?P<site_id>[\d+]+)"
         "/new$", 'onadata.apps.viewer.views.create_export'),
     url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)"
         "/delete$", 'onadata.apps.viewer.views.delete_export'),
-    url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)/(?P<is_project>[\d+^/]+)/(?P<id>[\d+^/]+)"
+    url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)/(?P<is_project>[\d+]+)/(?P<id>[\d+]+)"
+        "/delete", 'onadata.apps.viewer.views.delete_export'),
+    url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)/(?P<is_project>[\d+^/]+)/(?P<id>[\d+^/]+)/(?P<site_id>[\d+]+)"
         "/delete", 'onadata.apps.viewer.views.delete_export'),
     url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)"
         "/progress$", 'onadata.apps.viewer.views.export_progress'),
     url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)"
         "/$", 'onadata.apps.viewer.views.export_list'),
-    url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)/(?P<is_project>[\d+^/]+)/(?P<id>[\d+^/]+)"
+    url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)/(?P<is_project>[\d+])/(?P<id>[\d+]+)"
+        "/$", 'onadata.apps.viewer.views.export_list'),
+    url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)/(?P<is_project>[\d+])/(?P<id>[\d+]+)/(?P<site_id>[\d+]+)"
         "/$", 'onadata.apps.viewer.views.export_list'),
     url(r"^(?P<username>\w+)/exports/(?P<id_string>[^/]+)/(?P<export_type>\w+)"
         "/(?P<filename>[^/]+)$",

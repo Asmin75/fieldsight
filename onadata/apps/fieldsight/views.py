@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import datetime
 import json
 import redis
 import xlwt
@@ -44,8 +45,8 @@ from .mixins import (LoginRequiredMixin, SuperAdminMixin, OrganizationMixin, Pro
                      CreateView, UpdateView, DeleteView, OrganizationView as OView, ProjectView as PView,
                      group_required, OrganizationViewFromProfile, ReviewerMixin, MyOwnOrganizationMixin,
                      MyOwnProjectMixin, ProjectMixin)
-from .rolemixins import SuperUserRoleMixin, ReadonlyProjectLevelRoleMixin, ReadonlySiteLevelRoleMixin, DonorRoleMixin, DonorSiteViewRoleMixin, SiteDeleteRoleMixin, SiteRoleMixin, ProjectRoleView, ReviewerRoleMixin, ProjectRoleMixin, OrganizationRoleMixin, ReviewerRoleMixinDeleteView, ProjectRoleMixinDeleteView
-from .models import Organization, Project, Site, ExtraUserDetail, BluePrints, UserInvite, Region, SiteType
+from .rolemixins import FullMapViewMixin, SuperUserRoleMixin, ReadonlyProjectLevelRoleMixin, ReadonlySiteLevelRoleMixin, DonorRoleMixin, DonorSiteViewRoleMixin, SiteDeleteRoleMixin, SiteRoleMixin, ProjectRoleView, ReviewerRoleMixin, ProjectRoleMixin, OrganizationRoleMixin, ReviewerRoleMixinDeleteView, ProjectRoleMixinDeleteView
+from .models import ProjectGeoJSON, Organization, Project, Site, ExtraUserDetail, BluePrints, UserInvite, Region, SiteType
 from .forms import (OrganizationForm, ProjectForm, SiteForm, RegistrationForm, SetProjectManagerForm, SetSupervisorForm,
                     SetProjectRoleForm, AssignOrgAdmin, UploadFileForm, BluePrintForm, ProjectFormKo, RegionForm,
                     SiteBulkEditForm, SiteTypeForm)
@@ -62,7 +63,7 @@ from django.utils.http import urlsafe_base64_decode
 from django.db.models import Prefetch
 from django.core.files.storage import FileSystemStorage
 import pyexcel as p
-from onadata.apps.fieldsight.tasks import generateCustomReportPdf, multiuserassignproject, bulkuploadsites, multiuserassignsite, multiuserassignregion
+from onadata.apps.fieldsight.tasks import UnassignAllProjectRolesAndSites, UnassignAllSiteRoles, UnassignUser, generateCustomReportPdf, multiuserassignproject, bulkuploadsites, multiuserassignsite, multiuserassignregion
 from .generatereport import PDFReport
 from django.utils import translation
 from django.conf import settings
@@ -83,7 +84,7 @@ def dashboard(request):
         current_role = request.roles[0]
         role_type = request.roles[0].group.name
         if role_type == "Staff Project Manager":
-            return HttpResponseRedirect(reverse("fieldsight:StaffProjectList"))
+            return HttpResponseRedirect(reverse("staff:staff-project-detail"))
         if role_type == "Unassigned":
             return HttpResponseRedirect(reverse("fieldsight:roles-dashboard"))
         if role_type == "Site Supervisor":
@@ -155,7 +156,7 @@ def site_images(request, pk):
     return JsonResponse({'images':medias[:5]})
 
 def FormResponseSite(request, pk):
-    fi=FInstance.objects.get(pk=pk)
+    fi=FInstance.objects.get(instance_id=pk)
     data={}
     if fi.site:
         data['name'] = fi.site.name
@@ -201,8 +202,7 @@ class Organization_dashboard(LoginRequiredMixin, OrganizationRoleMixin, Template
             'progress_data': [], #bar_graph.data.values(),
             'progress_labels': [] , #bar_graph.data.keys(),
             'roles_org': roles_org,
-            'total_submissions': flagged + approved + rejected + outstanding
-
+            'total_submissions': flagged + approved + rejected + outstanding,
         }
         return dashboard_data
 
@@ -211,9 +211,9 @@ class Project_dashboard(ProjectRoleMixin, TemplateView):
     
     def get_context_data(self, **kwargs):
         # dashboard_data = super(Project_dashboard, self).get_context_data(**kwargs)
-        objs = Project.objects.filter(pk=self.kwargs.get('pk')).select_related("organization")
-        [o for o in objs]
-        obj = objs[0]
+        obj = get_object_or_404(Project, pk=self.kwargs.get('pk'), is_active=True)
+        # [o for o in objs]
+        # obj = objs[0]
 
         peoples_involved = obj.project_roles.filter(ended_at__isnull=True).distinct('user').count()
         # total_sites = obj.sites.filter(is_active=True, is_survey=False).count()
@@ -269,8 +269,8 @@ class SiteDashboardView(SiteRoleMixin, TemplateView):
     template_name = 'fieldsight/site_dashboard.html'
 
     def get_context_data(self, is_supervisor_only, **kwargs):
-        dashboard_data = super(SiteDashboardView, self).get_context_data(**kwargs)
-        obj = Site.objects.get(pk=self.kwargs.get('pk'))
+        # dashboard_data = super(SiteDashboardView, self).get_context_data(**kwargs)
+        obj =  get_object_or_404(Site, pk=self.kwargs.get('pk'), is_active=True)
         peoples_involved = obj.site_roles.filter(ended_at__isnull=True).distinct('user')
         data = serialize('custom_geojson', [obj], geometry_field='location',
                          fields=('name', 'public_desc', 'additional_desc', 'address', 'location', 'phone', 'id'))
@@ -373,11 +373,11 @@ class OrganizationCreateView(OrganizationView, SuperUserRoleMixin, CreateView):
                                        organization=self.object, content_object=self.object,
                                        description="{0} created a new organization named {1}".
                                        format(self.request.user, self.object.name))
-        result = {}
-        result['description'] = '{0} created a new organization named {1} '.format(noti.source.get_full_name(), self.object.name)
-        result['url'] = noti.get_absolute_url()
+        # result = {}
+        # result['description'] = '{0} created a new organization named {1} '.format(noti.source.get_full_name(), self.object.name)
+        # result['url'] = noti.get_absolute_url()
         # ChannelGroup("notify-{}".format(self.object.id)).send({"text": json.dumps(result)})
-        ChannelGroup("notify-0").send({"text": json.dumps(result)})
+        # ChannelGroup("notify-0").send({"text": json.dumps(result)})
 
         return HttpResponseRedirect(self.get_success_url())
 
@@ -392,11 +392,11 @@ class OrganizationUpdateView(OrganizationView, OrganizationRoleMixin, UpdateView
                                        organization=self.object, content_object=self.object,
                                        description="{0} changed the details of organization named {1}".
                                        format(self.request.user.get_full_name(), self.object.name))
-        result = {}
-        result['description'] = noti.description
-        result['url'] = noti.get_absolute_url()
-        ChannelGroup("notify-{0}".format(self.object.id)).send({"text": json.dumps(result)})
-        ChannelGroup("notify-0").send({"text": json.dumps(result)})
+        # result = {}
+        # result['description'] = noti.description
+        # result['url'] = noti.get_absolute_url()
+        # ChannelGroup("notify-{0}".format(self.object.id)).send({"text": json.dumps(result)})
+        # ChannelGroup("notify-0").send({"text": json.dumps(result)})
 
         return HttpResponseRedirect(self.get_success_url())
 
@@ -662,10 +662,10 @@ class ProjectCreateView(ProjectView, OrganizationRoleMixin, CreateView):
                                        organization=self.object.organization, content_object=self.object,
                                        description='{0} created new project named {1}'.format(
                                            self.request.user.get_full_name(), self.object.name))
-        result = {}
-        result['description'] = noti.description
-        result['url'] = noti.get_absolute_url()
-        ChannelGroup("notify-{}".format(self.object.organization.id)).send({"text": json.dumps(result)})
+        # result = {}
+        # result['description'] = noti.description
+        # result['url'] = noti.get_absolute_url()
+        # ChannelGroup("notify-{}".format(self.object.organization.id)).send({"text": json.dumps(result)})
         # ChannelGroup("notify-0").send({"text": json.dumps(result)})
 
 
@@ -684,34 +684,33 @@ class ProjectUpdateView(ProjectView, ProjectRoleMixin, UpdateView):
                                        project=self.object, content_object=self.object,
                                        description='{0} changed the details of project named {1}'.format(
                                            self.request.user.get_full_name(), self.object.name))
-        result = {}
-        result['description'] = noti.description
-        result['url'] = noti.get_absolute_url()
-        ChannelGroup("notify-{}".format(self.object.organization.id)).send({"text": json.dumps(result)})
-        ChannelGroup("project-{}".format(self.object.id)).send({"text": json.dumps(result)})
-
-        return HttpResponseRedirect(self.get_success_url())
-
-
-class ProjectDeleteView(ProjectView, ProjectRoleMixinDeleteView, DeleteView):
-    def get_success_url(self):
-        return reverse('fieldsight:org-project-list', kwargs={'pk': self.kwargs['org_id'] })
-
-    def delete(self,*args, **kwargs):
-        self.kwargs['org_id'] = self.get_object().organization_id
-        self.object = self.get_object().delete()
-        # noti = self.object.logs.create(source=self.request.user, type=4, title="new Site",
-        #                                organization=self.object.organization,
-        #                                description="new project {0} deleted by {1}".
-        #                                format(self.object.name, self.request.user.username))
         # result = {}
-        # result['description'] = 'new project {0} deleted by {1}'.format(self.object.name, self.request.user.username)
+        # result['description'] = noti.description
         # result['url'] = noti.get_absolute_url()
         # ChannelGroup("notify-{}".format(self.object.organization.id)).send({"text": json.dumps(result)})
-        # ChannelGroup("notify-0").send({"text": json.dumps(result)})
+        # ChannelGroup("project-{}".format(self.object.id)).send({"text": json.dumps(result)})
+
         return HttpResponseRedirect(self.get_success_url())
 
 
+class ProjectDeleteView(ProjectRoleMixinDeleteView, View):
+    def get(self, *args, **kwargs):
+        project = get_object_or_404(Project, pk=self.kwargs.get('pk'), is_active=True)
+        project.is_active = False
+        project.save()
+        task_obj=CeleryTaskProgress.objects.create(user=self.request.user, description="Removal of UserRoles After project delete", task_type=7)
+        if task_obj:
+            task = UnassignAllProjectRolesAndSites.delay(task_obj.id, project.id)
+            task_obj.task_id = task.id
+            task_obj.save()
+        
+        noti = task_obj.logs.create(source=self.request.user, type=36, title="Delete Project",
+                               organization=project.organization, extra_message="project",
+                               project=project, content_object=project, extra_object=project.organization,
+                               description='{0} deleted of project named {1}'.format(
+                                   self.request.user.get_full_name(), project.name))
+
+        return HttpResponseRedirect(reverse('fieldsight:org-project-list', kwargs={'pk': project.organization_id }))
 
 class SiteView(object):
     model = Site
@@ -745,11 +744,11 @@ class SiteCreateView(SiteView, ProjectRoleMixin, CreateView):
                                        project=self.object.project, content_object=self.object, extra_object=self.object.project,
                                        description='{0} created a new site named {1} in {2}'.format(self.request.user.get_full_name(),
                                                                                  self.object.name, self.object.project.name))
-        result = {}
-        result['description'] = '{0} created a new site named {1} in {2}'.format(self.request.user.get_full_name(),
-                                                                                 self.object.name, self.object.project.name)
-        result['url'] = noti.get_absolute_url()
-        ChannelGroup("project-{}".format(self.object.project.id)).send({"text": json.dumps(result)})
+        # result = {}
+        # result['description'] = '{0} created a new site named {1} in {2}'.format(self.request.user.get_full_name(),
+        #                                                                          self.object.name, self.object.project.name)
+        # result['url'] = noti.get_absolute_url()
+        # ChannelGroup("project-{}".format(self.object.project.id)).send({"text": json.dumps(result)})
         # ChannelGroup("notify-0").send({"text": json.dumps(result)})
 
         return HttpResponseRedirect(self.get_success_url())
@@ -806,12 +805,12 @@ class SiteUpdateView(SiteView, ReviewerRoleMixin, UpdateView):
             description=description,
             extra_json=extra_json,
         )
-        result = {}
-        result['description'] = 'new site {0} updated by {1}'.format(self.object.name, self.request.user.username)
-        result['url'] = noti.get_absolute_url()
-        ChannelGroup("notify-{}".format(self.object.project.organization.id)).send({"text": json.dumps(result)})
-        ChannelGroup("project-{}".format(self.object.project.id)).send({"text": json.dumps(result)})
-        ChannelGroup("site-{}".format(self.object.id)).send({"text": json.dumps(result)})
+        # result = {}
+        # result['description'] = 'new site {0} updated by {1}'.format(self.object.name, self.request.user.username)
+        # result['url'] = noti.get_absolute_url()
+        # ChannelGroup("notify-{}".format(self.object.project.organization.id)).send({"text": json.dumps(result)})
+        # ChannelGroup("project-{}".format(self.object.project.id)).send({"text": json.dumps(result)})
+        # ChannelGroup("site-{}".format(self.object.id)).send({"text": json.dumps(result)})
         # ChannelGroup("notify-0").send({"text": json.dumps(result)})
 
         return HttpResponseRedirect(self.get_success_url())
@@ -826,10 +825,23 @@ class SiteUpdateView(SiteView, ReviewerRoleMixin, UpdateView):
         return form
 
 
-class SiteDeleteView(SiteView, SiteDeleteRoleMixin, DeleteView):
-    def get_success_url(self):
-        return reverse('fieldsight:proj-site-list', kwargs={'pk': self.object.project_id})
-
+class SiteDeleteView(SiteDeleteRoleMixin, View):
+    def get(self, *args, **kwargs):
+        site = get_object_or_404(Site, pk=self.kwargs.get('pk'), is_active=True)
+        site.is_active = False
+        site.save()
+        task_obj=CeleryTaskProgress.objects.create(user=self.request.user, description="Removal of UserRoles After Site delete", task_type=7)
+        if task_obj:
+            task = UnassignAllSiteRoles.delay(task_obj.id, site.id)
+            task_obj.task_id = task.id
+            task_obj.save()
+        
+        noti = task_obj.logs.create(source=self.request.user, type=36, title="Delete Site",
+                               organization=site.project.organization, extra_object=site.project,
+                               project=site.project, extra_message="site", site=site, content_object=site,
+                               description='{0} deleted of site named {1}'.format(
+                                   self.request.user.get_full_name(), site.name))
+        return HttpResponseRedirect(self.get_success_url(reverse('fieldsight:proj-site-list', kwargs={'pk': site.project_id})))
     # def delete(self,*args, **kwargs):
     #     self.kwargs['pk'] = self.get_object().pk
     #     self.object = self.get_object().delete()
@@ -1136,6 +1148,8 @@ class OrgProjectList(OrganizationRoleMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super(OrgProjectList, self).get_context_data(**kwargs)
         context['pk'] = self.kwargs.get('pk')
+        context['tree'] = "organization_projects"
+        context['obj'] = Organization.objects.get(pk=self.kwargs.get('pk'))
         return context
     def get_queryset(self):
         queryset = Project.objects.filter(organization_id=self.kwargs.get('pk'))
@@ -1915,10 +1929,10 @@ class SitedataSubmissionView(ReadonlySiteLevelRoleMixin, TemplateView):
     def get_context_data(self, **kwargs):
         data = super(SitedataSubmissionView, self).get_context_data(**kwargs)
         data['obj'] = Site.objects.get(pk=self.kwargs.get('pk'))
-        data['pending'] = FInstance.objects.filter(site_id = self.kwargs.get('pk'), site_fxf_id__isnull=False, form_status = '0').order_by('-date')
-        data['rejected'] = FInstance.objects.filter(site_id = self.kwargs.get('pk'), site_fxf_id__isnull=False, form_status = '1').order_by('-date')
-        data['flagged'] = FInstance.objects.filter(site_id = self.kwargs.get('pk'), site_fxf_id__isnull=False, form_status = '2').order_by('-date')
-        data['approved'] = FInstance.objects.filter(site_id = self.kwargs.get('pk'), site_fxf_id__isnull=False, form_status = '3').order_by('-date')
+        data['pending'] = FInstance.objects.filter(site_id = self.kwargs.get('pk'), form_status = '0').order_by('-date')
+        data['rejected'] = FInstance.objects.filter(site_id = self.kwargs.get('pk'), form_status = '1').order_by('-date')
+        data['flagged'] = FInstance.objects.filter(site_id = self.kwargs.get('pk'), form_status = '2').order_by('-date')
+        data['approved'] = FInstance.objects.filter(site_id = self.kwargs.get('pk'), form_status = '3').order_by('-date')
         data['type'] = self.kwargs.get('type')
         data['is_donor_only'] = kwargs.get('is_donor_only', False)
 
@@ -2341,11 +2355,11 @@ class DefineProjectSiteMeta(ProjectRoleMixin, TemplateView):
     def post(self, request, pk, *args, **kwargs):
         project = Project.objects.get(pk=pk)
         old_meta = project.site_meta_attributes
-        print old_meta
-        print "----"
+        # print old_meta
+        # print "----"
         project.site_meta_attributes = request.POST.get('json_questions');
         new_meta = json.loads(project.site_meta_attributes)
-        print new_meta
+        # print new_meta
         updated_json = None
 
         if old_meta != new_meta:
@@ -2452,7 +2466,7 @@ class ExcelBulkSiteSample(ProjectRoleMixin, View):
         columns = [
             site.identifier,
             site.name,
-            site.type and site.type.name,
+            site.type and site.type.identifier,
             site.phone,
             site.address,
             site.public_desc,
@@ -2506,6 +2520,96 @@ class SiteSearchView(ListView):
         # import pdb; pdb.set_trace()
         return filtered_objects.filter(Q(name__icontains=query) | Q(identifier__icontains=query))
 
+# def get_project_stage_status(request, pk, q_keyword,page_list):
+#     data = []
+#     ss_id = []
+#     stages_rows = []
+#     head_row = ["Site ID", "Name"]
+#     project = get_object_or_404(Project, pk=pk)
+    
+#     stages = project.stages.filter(stage__isnull=True).prefetch_related('parent')
+    
+#     table_head = []
+#     substages =[]
+#     table_head.append({"name":"Site Id", "rowspan":2, "colspan":1 })
+#     table_head.append({"name":"Site Name", "rowspan":2, "colspan":1 })
+    
+#     stage_count=0
+#     for stage in stages:
+#         stage_count+=1
+
+#         sub_stages = stage.parent.filter(stage_forms__is_deleted=False)
+#         if len(sub_stages) > 0:
+#             stages_rows.append("Stage :"+stage.name)
+#             table_head.append({"name":stage.name, "stage_order": "Stage " +str(stage_count), "rowspan":1, "colspan":len(sub_stages) })
+#             sub_stage_count=0
+#             for ss in sub_stages:
+#                 sub_stage_count+=1
+#                 head_row.append("Sub Stage :"+ss.name)
+#                 ss_id.append(ss.id)
+#                 substages.append([ss.name, str(stage_count)+"."+str(sub_stage_count)])
+
+    
+
+#     # data.append(head_row)
+#     def filterbyvalue(seq, value):
+#         for el in seq:
+#             if el.project_stage_id==value: yield el
+
+#     def getStatus(el):
+#         if el is not None and el.form_status==3: return "Approved", "cell-success" 
+#         elif el is not None and el.form_status==2: return "Flagged", "cell-warning"
+#         elif el is not None and el.form_status==1: return "Rejected", "cell-danger"
+#         else: return "Pending", "cell-primary"
+#     if q_keyword is not None:
+#         site_list = project.sites.filter(name__icontains=q_keyword, is_active=True, is_survey=False).prefetch_related(Prefetch('stages__stage_forms__site_form_instances', queryset=FInstance.objects.order_by('-id')))
+#         get_params = "?q="+q_keyword +"&page="
+#     else:
+#         site_list_pre = FInstance.objects.filter(project_id=pk, project_fxf_id__is_staged=True, site__is_active=True, site__is_survey=False).distinct('site_id').order_by('site_id').only('pk')
+#         # site_list = Site.objects.get()
+
+#         FInstance.objects.filter(pk__in=site_list_pre).order_by('-id').prefetch_related(Prefetch('project__stages__stage_forms__project_form_instances', queryset=FInstance.objects.filter().order_by('-id')))
+#         get_params = "?page="
+#     paginator = Paginator(site_list, page_list) # Show 25 contacts per page
+#     page = request.GET.get('page')
+#     try:
+#         sites = paginator.page(page)
+#     except PageNotAnInteger:
+#         # If page is not an integer, deliver first page.
+#         sites = paginator.page(1)
+#     except EmptyPage:
+#     # If page is out of range (e.g. 9999), deliver last page of results.
+#         sites = paginator.page(paginator.num_pages)
+#     for site in sites:
+#         site_row = ["<a href='"+site.site.get_absolute_url()+"'>"+site.site.identifier+"</a>", "<a href='"+site.site.get_absolute_url()+"'>"+site.site.name+"</a>"]
+#         for v in ss_id:
+
+#             substage = filterbyvalue(site.site.stages.all(), v)
+#             substage1 = next(substage, None)
+#             if substage1 is not None:
+#                 if  substage1.stage_forms.site_form_instances.all():
+#                      get_status = getStatus(substage1.stage_forms.site_form_instances.all()[0])
+#                      status, style_class = get_status
+#                      submission_count = substage1.stage_forms.site_form_instances.all().count()
+#                 else:
+#                     status, style_class = "No submission.", "cell-inactive"
+#                     submission_count = 0
+#             else:
+#                  status, style_class = "-", "cell-inactive"
+#                  submission_count = 0
+#             site_row.append([status, submission_count, style_class])
+        
+#         data.append(site_row)
+
+#     if sites.has_next():
+#         next_page_url = request.build_absolute_uri(reverse('fieldsight:ProjectStageResponsesStatus', kwargs={'pk': pk})) + get_params + str(sites.next_page_number())
+#     else:
+#         next_page_url =  None
+#     content={'head_cols':table_head, 'sub_stages':substages, 'rows':data}
+#     main_body = {'next_page':next_page_url,'content':content}
+#     return main_body
+
+
 def get_project_stage_status(request, pk, q_keyword,page_list):
     data = []
     ss_id = []
@@ -2540,21 +2644,40 @@ def get_project_stage_status(request, pk, q_keyword,page_list):
     # data.append(head_row)
     def filterbyvalue(seq, value):
         for el in seq:
-            if el.project_stage_id==value: yield el
+            if el.id==value: yield el
 
-    def getStatus(el):
-        if el is not None and el.form_status==3: return "Approved", "cell-success" 
-        elif el is not None and el.form_status==2: return "Flagged", "cell-warning"
-        elif el is not None and el.form_status==1: return "Rejected", "cell-danger"
-        else: return "Pending", "cell-primary"
+    def getStatus(datas, site_id):
+        el = None
+        count = 0 
+        for data in datas:
+            
+            if data.site_id == site_id:
+                if el is None:
+                    el = data
+                count += 1
+
+        if el is not None and el.form_status==3: return "Approved", "cell-success", count 
+        elif el is not None and el.form_status==2: return "Flagged", "cell-warning", count 
+        elif el is not None and el.form_status==1: return "Rejected", "cell-danger", count
+        elif el is not None and el.form_status==0: return "Pending", "cell-primary", count
+        else: return "No submission", "cell-inactive", count
+
+
+
     if q_keyword is not None:
-        site_list = project.sites.filter(name__icontains=q_keyword, is_active=True, is_survey=False).prefetch_related(Prefetch('stages__stage_forms__site_form_instances', queryset=FInstance.objects.order_by('-id')))
-        get_params = "?q="+keyword +"&page="
+        site_list = Site.objects.filter(project_id=pk, name__icontains=q_keyword, is_active=True, is_survey=False)
+        get_params = "?q="+q_keyword +"&page="
     else:
-        site_list_pre = FInstance.objects.filter(project_id=pk, project_fxf_id__is_staged=True, site__is_active=True, site__is_survey=False).distinct('site_id').order_by('site_id').only('pk')
-        site_list = FInstance.objects.filter(pk__in=site_list_pre).order_by('-id').prefetch_related(Prefetch('site__stages__stage_forms__site_form_instances', queryset=FInstance.objects.order_by('-id')))
+        site_list_pre = FInstance.objects.filter(project_id=pk, project_fxf_id__is_staged=True, site__is_active=True, site__is_survey=False).distinct('site_id').order_by('site_id').values('site_id')
+        site_list = Site.objects.filter(pk__in=site_list_pre)
+
+        
+        # FInstance.objects.filter(pk__in=site_list_pre).order_by('-id').prefetch_related(Prefetch('project__stages__stage_forms__project_form_instances', queryset=FInstance.objects.filter().order_by('-id')))
         get_params = "?page="
-    paginator = Paginator(site_list, page_list) # Show 25 contacts per page
+    
+    stages = Stage.objects.filter(stage__isnull=False, stage__project_id=pk).prefetch_related(Prefetch('stage_forms__project_form_instances', queryset=FInstance.objects.filter(site_id__in=site_list).order_by('-date')))
+    
+    paginator = Paginator(site_list, page_list) # Show how many contacts per page
     page = request.GET.get('page')
     try:
         sites = paginator.page(page)
@@ -2565,16 +2688,18 @@ def get_project_stage_status(request, pk, q_keyword,page_list):
     # If page is out of range (e.g. 9999), deliver last page of results.
         sites = paginator.page(paginator.num_pages)
     for site in sites:
-        site_row = ["<a href='"+site.site.get_absolute_url()+"'>"+site.site.identifier+"</a>", "<a href='"+site.site.get_absolute_url()+"'>"+site.site.name+"</a>"]
+        site_row = ["<a href='"+site.get_absolute_url()+"'>"+site.identifier+"</a>", "<a href='"+site.get_absolute_url()+"'>"+site.name+"</a>"]
+        
         for v in ss_id:
-
-            substage = filterbyvalue(site.site.stages.all(), v)
+            substage = filterbyvalue(stages, v)
             substage1 = next(substage, None)
+            
             if substage1 is not None:
-                if  substage1.stage_forms.site_form_instances.all():
-                     get_status = getStatus(substage1.stage_forms.site_form_instances.all()[0])
-                     status, style_class = get_status
-                     submission_count = substage1.stage_forms.site_form_instances.all().count()
+                if  substage1.stage_forms.project_form_instances.all():
+
+                    status, style_class, submission_count = getStatus(substage1.stage_forms.project_form_instances.all(), site.id)
+                     
+
                 else:
                     status, style_class = "No submission.", "cell-inactive"
                     submission_count = 0
@@ -2612,7 +2737,7 @@ class StageTemplateView(ReadonlyProjectLevelRoleMixin, View):
         return render(request, 'fieldsight/ProjectStageResponsesStatus.html', {'obj':obj,})
             # return HttpResponse(table_head)\
 
-def response_export(request, pk):
+def response_export(request, pk, include_null_fields):
     
     buffer = BytesIO()
     response = HttpResponse(content_type='application/pdf')
@@ -2625,7 +2750,7 @@ def response_export(request, pk):
     response['Content-Disposition'] = 'attachment; filename="'+ file_name +'"'
     base_url = request.get_host()
     report = PDFReport(buffer, 'Letter')
-    pdf = report.print_individual_response(pk, base_url)
+    pdf = report.print_individual_response(pk, base_url, include_null_fields)
 
     buffer.seek(0)
 
@@ -2641,19 +2766,23 @@ def response_export(request, pk):
 
 class FormlistAPI(View):
     def get(self, request, pk):
-        mainstage=[]
-        schedule = FieldSightXF.objects.filter(site_id=pk, is_scheduled = True, is_staged=False, is_survey=False).values('id','schedule__name')
-        stages = Stage.objects.filter(site_id=pk)
+        site=get_object_or_404(Site, pk=pk, is_active=True)
+        mainstages=[]
+        stages = Stage.objects.filter(stage__isnull=True).filter(Q(site_id=pk, project_stage_id=0) | Q(project_id=site.project_id)).order_by('order', 'date_created')
+        
         for stage in stages:
             if stage.stage_id is None:
                 substages=stage.get_sub_stage_list()
                 main_stage = {'id':stage.id, 'title':stage.name, 'sub_stages':list(substages)}
                 # stagegroup = {'main_stage':main_stage,}
-                mainstage.append(main_stage)
+                mainstages.append(main_stage)
+        
+        generals = FieldSightXF.objects.filter(is_staged=False, is_deleted=False, is_scheduled=False,  is_survey=False).filter(Q(site_id=pk, from_project=False)| Q(project_id=site.project_id)).values('id','xf__title')
 
-        survey = FieldSightXF.objects.filter(site_id=pk, is_scheduled = False, is_staged=False, is_survey=True).values('id','xf__title')
-        general = FieldSightXF.objects.filter(site_id=pk, is_scheduled = False, is_staged=False, is_survey=False).values('id','xf__title')
-        content={'general':list(general), 'schedule':list(schedule), 'stage':list(mainstage), 'survey':list(survey)}
+        schedules = FieldSightXF.objects.filter(is_deleted=False, schedule__isnull=False).filter(Q(schedule__site_id=pk, from_project=False) | Q(schedule__project_id=site.project_id)).values('id','schedule__name')
+
+        content={'general':list(generals), 'schedule':list(schedules), 'stage':list(mainstages)}
+
         return JsonResponse(content, status=200)
 
     def post(self, request, pk, **kwargs):
@@ -2662,9 +2791,11 @@ class FormlistAPI(View):
         fs_ids = data.get('fs_ids')
         start_date = data.get('startdate')
         end_date = data.get('enddate')
+        removeNullField = data.get('removeNullField', False)
+
         task_obj=CeleryTaskProgress.objects.create(user=request.user, task_type=0)
         if task_obj:
-            task = generateCustomReportPdf.delay(task_obj.id, request.user, pk, base_url, fs_ids, start_date, end_date)
+            task = generateCustomReportPdf.delay(task_obj.id, request.user, pk, base_url, fs_ids, start_date, end_date, removeNullField)
             task_obj.task_id = task.id
             task_obj.save()
             status, data = 200, {'status':'True','message':'Sucess, the report is being generated. You will be notified after the report is generated. '}
@@ -2685,7 +2816,7 @@ class RecentResponseImages(ReadonlySiteLevelRoleMixin, View):
     def get(self, request, pk, **kwargs):
         recent_resp_imgs = get_images_for_site(pk)
         content={'images':list(recent_resp_imgs["result"])}
-        return JsonResponse(json.dumps(content, cls=DjangoJSONEncoder, ensure_ascii=False).encode('utf8'), status=200)
+        return JsonResponse(content, status=200)
 
 class SiteResponseCoordinates(ReadonlySiteLevelRoleMixin, View):
     def get(self, request, pk, **kwargs):
@@ -2708,11 +2839,11 @@ class DonorProjectDashboard(DonorRoleMixin, TemplateView):
     
     def get_context_data(self, **kwargs):
         dashboard_data = super(DonorProjectDashboard, self).get_context_data(**kwargs)
-        obj = Project.objects.get(pk=self.kwargs.get('pk'))
+        obj = get_object_or_404(Project, pk=self.kwargs.get('pk'), is_active=True)
 
         peoples_involved = obj.project_roles.filter(ended_at__isnull=True).distinct('user')
         total_sites = obj.sites.filter(is_active=True, is_survey=False).count()
-        sites = obj.sites.filter(is_active=True, is_survey=False)
+        sites = obj.sites.filter(is_active=True, is_survey=False)[:100]
         data = serialize('custom_geojson', sites, geometry_field='location',
                          fields=('location', 'id',))
 
@@ -2749,7 +2880,7 @@ class DonorSiteDashboard(DonorSiteViewRoleMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         dashboard_data = super(DonorSiteDashboard, self).get_context_data(**kwargs)
-        obj = Site.objects.get(pk=self.kwargs.get('pk'))
+        obj =  get_object_or_404(Site, pk=self.kwargs.get('pk'), is_active=True)
         peoples_involved = obj.site_roles.filter(ended_at__isnull=True).distinct('user')
         data = serialize('custom_geojson', [obj], geometry_field='location',
                          fields=('name', 'public_desc', 'additional_desc', 'address', 'location', 'phone', 'id'))
@@ -2873,6 +3004,7 @@ def project_dashboard_peoples(request, pk):
                                   name=role.user.get_full_name(),
                                   email=role.user.email,
                                   phone=role.user.user_profile.phone,
+                                  url=reverse("users:profile",args=(role.user.id,)),
                                   image=role.user.user_profile.profile_picture.url))
             users.append(role.user.username)
 
@@ -2936,8 +3068,41 @@ def site_refrenced_metas(request, pk):
                     metas.append({'question_text': meta.get('question_text'), 'answer':answer, 'question_type':'Normal'})
                     
             else:
-                answer = meta_answer.get(meta.get('question_name'), "")
-                metas.append({'question_text': meta.get('question_text'), 'answer':answer, 'question_type':'Normal'})
+                answer=""
+                question_type="Normal"
+
+                if meta.get('question_type') == "Form":
+                    fxf = FieldSightXF.objects.filter(site_id=site.id, fsform_id=int(meta.get('form_id', "0")))
+                    if fxf:
+                        sub = fxf[0].site_form_instances.order_by('-pk')[:1]
+                        if sub:
+
+                            sub_answers = sub[0].instance.json
+                            answer = sub_answers.get(meta.get('question').get('name') ,'')
+                            if meta['question']['type'] in ['photo', 'video', 'audio'] and answer is not "":
+                                question_type = "Media"
+                                answer = 'http://'+request.get_host()+'/attachment/medium?media_file='+ fxf.xf.user.username +'/attachments/'+answer
+                        else:
+                            answer = "No Submission Yet."
+                    else:
+                        answer = "No Form"
+
+
+
+                elif meta.get('question_type') == "FormSubStat":
+                    fxf = FieldSightXF.objects.filter(site_id=site.id, fsform_id=int(meta.get('form_id', "0")))
+                    if fxf:
+                        sub_date = fxf[0].getlatestsubmittiondate()
+                        if sub_date:
+                            answer = "Last submitted on " + sub_date[0]['date'].strftime("%d %b %Y %I:%M %P")
+                        else:
+                            answer = "No submission yet."
+                    else:
+                        answer = "No Form"
+                else:
+                    answer = meta_answer.get(meta.get('question_name'), "")
+
+                metas.append({'question_text': meta.get('question_text'), 'answer':answer, 'question_type':question_type})
 
 
     generate(metas, project.id, project.site_meta_attributes, site.site_meta_attributes_ans, None, None)
@@ -3107,3 +3272,133 @@ def municipality_data(request):
     # data = r.hgetall("municipality")
     data = generate_municipality_data()
     return Response(data.values())
+
+
+class MainRegionsAndSitesAPI(View):
+    def get(self, request, pk, **kwargs):
+        sites = UserRole.objects.filter(user_id = self.kwargs.get('user_id'), group_id=self.kwargs.get('group_id'), ended_at=None, project_id=pk, site__isnull=False).distinct('site_id').values('site_id')
+        regions_ids = UserRole.objects.filter(user_id = self.kwargs.get('user_id'), group_id=self.kwargs.get('group_id'), ended_at=None, project_id=pk, site__isnull=False, site__region_id__isnull=False).distinct('site__region_id').values('site__region_id')
+        regions = Region.objects.filter(parent = None, pk__in=regions_ids, project_id=pk).extra(select={'label': 'name'}).values('id','label', 'identifier')
+        sites= Site.objects.filter(pk__in=sites, region=None).extra(select={'label': 'name'}).values('id','label', 'identifier')
+        content={'regions':list(regions), 'sites':list(sites)}
+        return JsonResponse(content, status=200)
+
+class SubRegionAndSitesAPI(View):
+    def get(self, request, pk, **kwargs):
+        region = Region.objects.get(pk=pk)
+        sites = UserRole.objects.filter(user_id = self.kwargs.get('user_id'), ended_at=None, group_id=self.kwargs.get('group_id'), project_id=region.project_id, site__isnull=False).distinct('site_id').values('site_id')
+        regions_ids = UserRole.objects.filter(user_id = self.kwargs.get('user_id'), group_id=self.kwargs.get('group_id'), ended_at=None, project_id=pk, site__isnull=False, site__region_id__isnull=False).distinct('site__region_id').values('site__region_id')
+        sub_regions = Region.objects.filter(parent_id = pk, pk__in=regions_ids).extra(select={'label': 'name'}).values('id','label', 'identifier')
+        sites= Site.objects.filter(pk__in=sites, region_id=pk).extra(select={'label': 'name'}).values('id','label', 'identifier')
+        content={'sub_regions':list(sub_regions), 'sites':list(sites)}
+        return JsonResponse(content, status=200)
+
+class UnassignUserRegionAndSites(View):
+    def post(self, request, pk, **kwargs):
+        data = json.loads(self.request.body)
+        ids = data.get('ids')
+        projects = [k for k in ids if 'p' in str(k)] 
+        ids = list(set(ids) - set(projects))
+        regions = [k for k in ids if 'r' in str(k)]
+        sites = list(set(ids) - set(regions))
+        user_id= pk
+        group_id = data.get('group')
+
+        status, data = 200, {'status':'false','message':'PermissionDenied. You do not have sufficient rights.'}
+        
+        if request.group.name != "Super Admin":        
+            
+            request_usr_org_role = UserRole.objects.filter(user_id=request.user.id, ended_at = None, group_id=1).order_by('organization_id').distinct('organization_id').values_list('organization_id', flat=True)
+            if not request_usr_org_role:
+                
+                request_usr_project_role = UserRole.objects.filter(user_id=request.user.id, ended_at = None, group_id=2).order_by('project_id').distinct('project_id').values_list('project_id', flat=True)
+                if not request_usr_project_role:
+                    return JsonResponse(data, status=status)
+
+                if projects:
+                    project_ids = [k[1:] for k in projects]
+                    if not set(project_ids).issubset(set(request_usr_project_role)):
+                        return JsonResponse(data, status=status)  
+
+                if regions:
+                    region_ids = [k[1:] for k in regions]
+
+                    if len(region_ids) != Region.objects.filter(pk__in=region_ids, project_id__in=request_usr_project_role).count(): 
+                        return JsonResponse(data, status=status)   
+
+
+                if sites:
+                    if len(sites) != Site.objects.filter(pk__in=sites, project_id__in=request_usr_project_role).count():
+                        return JsonResponse(data, status=status) 
+
+
+            else:
+
+                if projects:
+                    project_ids = [k[1:] for k in projects]
+
+                    if len(project_ids) != Project.objects.filter(pk__in=project_ids, organization_id__in=request_usr_org_role).count(): 
+                        return JsonResponse(data, status=status)         
+                
+                if regions:
+                    region_ids = [k[1:] for k in regions]
+
+                    if len(region_ids) != Region.objects.filter(pk__in=region_ids, project__organization_id__in=request_usr_org_role).count(): 
+                        return JsonResponse(data, status=status)   
+
+
+                if sites:
+                    if len(sites) != Site.objects.filter(pk__in=sites, project__organization_id__in=request_usr_org_role).count():
+                        return JsonResponse(data, status=status) 
+
+
+        status, data = 401, {'status':'false','message':'Error occured try again.'}
+        
+        if int(group_id) in [3,4]:
+            
+            task_obj=CeleryTaskProgress.objects.create(user=request.user, description="Removal of UserRoles", task_type=7)
+            if task_obj:
+                task = UnassignUser.delay(task_obj.id, user_id, sites, regions, projects, group_id)
+                task_obj.task_id = task.id
+                task_obj.save()
+                status, data = 200, {'status':'True', 'ids':ids, 'projects':projects, 'regions':regions, 'sites': sites, 'message':'Sucess, the roles are being removed. You will be notified after all the roles are removed. '}
+        
+        return JsonResponse(data, status=status)
+
+#class ProjectSiteListGeoJSON(ReadonlyProjectLevelRoleMixin, View):
+
+class ProjectSiteListGeoJSON(FullMapViewMixin, View):
+    def get(self, request, **kwargs):
+        project = Project.objects.get(pk=self.kwargs.get('pk'))
+        try: 
+            startdate = project.project_geojson.updated_at
+            #Use updated date as the submissions can be updated any time.
+            sites_id = FInstance.objects.filter(project_id=project.id, date__gt=startdate, site__isnull=False).values('site_id')
+            sites = Site.objects.filter(pk__in=sites_id, is_survey=False, is_active=True)
+        except:
+            sites = Site.objects.filter(project_id=project.id, is_survey=False, is_active=True)
+
+        data = serialize('full_detail_geojson',
+                         sites,
+                         geometry_field='location',
+                         fields=('name', 'location', 'id', 'identifier' ))
+
+        return JsonResponse(json.loads(data), status=200)
+
+
+
+class DonorFullMap(FullMapViewMixin, View):
+    def get(self, request, **kwargs):
+        return render(request, 'fieldsight/donor_fullmap.html', {})
+
+
+class GeoJSONContent(View):
+    def get(self, request, **kwargs):
+        geojsonfile = ProjectGeoJSON.objects.get(pk=self.kwargs.get('pk')).geoJSON
+        geojsonfile.open(mode='rb') 
+        lines = geojsonfile.read()
+        geojsonfile.close()
+        return JsonResponse(json.loads(lines), status=200)
+
+
+

@@ -3,7 +3,10 @@ def parse_form_response(main_question, main_answer, base_url, media_folder):
     parsed_question=[]
     parsed_answer={}
     repeated_qa={}
+
+    repeat_questions=[]
     
+
     def append_row(question_name, question_label, question_type, answer_dict, is_repeat=None):
     
         if question_name in answer_dict:
@@ -59,8 +62,9 @@ def parse_form_response(main_question, main_answer, base_url, media_folder):
                 group_question=parse_repeat_group( g_question+"/", first_children, repeat_answers )
                 repeat_questions_.extend(group_questions)
 
+
             elif first_children['type'] == 'repeat':
-                continue
+                parse_repeat(g_question+"/",first_children, repeat_answers)
 
             else:
                 if 'label' in first_children:
@@ -70,7 +74,8 @@ def parse_form_response(main_question, main_answer, base_url, media_folder):
             
             
         repeat_qa[g_question] = {'questions': repeat_questions_, 'answers': repeat_answers}
-        
+        repeat_questions.append({'g_question':repeat_questions})
+
     def parse_group( prev_groupname, g_object, answers=main_answer):
        
         g_question = prev_groupname+g_object['name']

@@ -10,10 +10,8 @@ from celery import shared_task
 from onadata.apps.fieldsight.models import Organization, Project, Site, Region, SiteType
 from onadata.apps.userrole.models import UserRole
 from onadata.apps.eventlog.models import FieldSightLog, CeleryTaskProgress
-from django.contrib import messages
 from channels import Group as ChannelGroup
-from django.contrib.auth.models import Group
-from celery import task, current_task
+from django.contrib.auth.models import User, Group
 from onadata.apps.fieldsight.fs_exports.formParserForExcelReport import parse_form_response
 from io import BytesIO
 from django.shortcuts import get_object_or_404
@@ -24,74 +22,218 @@ from django.db.models import Prefetch
 from .generatereport import PDFReport
 import os, tempfile, zipfile
 from django.conf import settings
+
 from django.http import HttpResponse
 from django.core.servers.basehttp import FileWrapper
 from openpyxl import Workbook
 
 from openpyxl.styles import Font
 
+from django.core.files.storage import get_storage_class
+from onadata.libs.utils.viewer_tools import get_path
+from PIL import Image
+
 def get_images_for_site_all(site_id):
     return settings.MONGO_DB.instances.aggregate([{"$match":{"fs_site" : site_id}}, {"$unwind":"$_attachments"}, {"$project" : {"_attachments":1}},{ "$sort" : { "_id": -1 }}])
 
-@task()
+@shared_task()
 def site_download_zipfile(task_prog_obj_id, size):
     task = CeleryTaskProgress.objects.get(pk=task_prog_obj_id)
     task.status = 1
-    
     task.save()
-
     try:
-        """ Create a ZIP file on disk and transmit it in chunks of 8KB,                 
-        without loading the whole file into memory. A similar approach can          
-        be used for large dynamic PDF files.                                        
-        """
         default_storage = get_storage_class()() 
         buffer = BytesIO()
-        datas = get_images_for_site_all(str(site_id))
+        datas = get_images_for_site_all(str(task.object_id))
         urls = list(datas["result"])
         archive = zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED)
         index=0
         username=urls[0]['_attachments']['download_url'].split('/')[2]
         for url in urls:        
             index+=1
-            if default_storage.exists(get_path(url['_attachments']['filename'], "-"+size)):
-                temp = tempfile.TemporaryFile()
-                file = default_storage.open(get_path(url['_attachments']['filename'], "-"+size)) 
-                filecontent = file.read()
-                temp.write(filecontent)
+            if default_storage.exists(get_path(url['_attachments']['filename'], size)):
                 
-                # filename = '/srv/fieldsight/fieldsight-kobocat'+url['_attachments']['filename'] # Select your files here.                           
+                with tempfile.NamedTemporaryFile(mode="wb") as temp:
                 
-                archive.write(temp, url['_attachments']['filename'].split('/')[2])
-                temp.close()
+                    file = default_storage.open(get_path(url['_attachments']['filename'], size))
+                    img=Image.open(file)
+                    img.save(temp, img.format)
+                    # filename = '/srv/fieldsight/fieldsight-kobocat'+url['_attachments']['filename'] # Select your files here.                           
+                    archive.write(temp.name, url['_attachments']['filename'].split('/')[2])
+                    
         archive.close()
         buffer.seek(0)
         zipFile = buffer.getvalue()
-
-        if default_storage.exists(task.site.identifier + '/files/'+task.site.name+'.zip'):
-            default_storage.delete(task.site.identifier + '/files/'+task.site.name+'.zip')
-
-        zipFile_url = default_storage.save(task.site.identifier + '/files/'+task.site.name+'.zip', ContentFile(zipFile))
-        buffer.close()
+        if default_storage.exists(task.content_object.identifier + '/files/'+task.content_object.name+'.zip'):
+            default_storage.delete(task.content_object.identifier + '/files/'+task.content_object.name+'.zip')
+        zipFile_url = default_storage.save(task.content_object.identifier + '/files/'+task.content_object.name+'.zip', ContentFile(zipFile))
         task.file.name = zipFile_url
         task.status = 2
         task.save()
-
-        noti = task.logs.create(source=task.source_user, type=32, title="Pdf Report generation in site",
-                                   recipient=source_user, content_object=task, extra_object=task.site,
-                                   extra_message=" <a href='"+ task.file.url +"'>Pdf report</a> generation in site")
+        buffer.close()
+        noti = task.logs.create(source=task.user, type=32, title="Image Zip generation in site",
+                                   recipient=task.user, content_object=task, extra_object=task.content_object,
+                                   extra_message=" <a href='"+ task.file.url +"'>Image Zip file </a> generation in site")
     except Exception as e:
+        task.description = "ERROR: " + str(e.message) 
         task.status = 3
         task.save()
         print 'Report Gen Unsuccesfull. %s' % e
         print e.__dict__
-        noti = task.logs.create(source=task.source_user, type=432, title="Pdf Report generation in site",
-                                       content_object=task.site, recipient=source_user,
+        noti = task.logs.create(source=task.user, type=432, title="Image Zip generation in site",
+                                       content_object=task.content_object, recipient=task.user,
                                        extra_message="@error " + u'{}'.format(e.message))
         buffer.close()                                                                      
     
 
-@task()
+@shared_task()
+def UnassignUser(task_prog_obj_id, user_id, sites, regions, projects, group_id):
+    user = User.objects.get(pk=user_id)
+    time.sleep(2)
+    task = CeleryTaskProgress.objects.get(pk=task_prog_obj_id)
+    task.status=1
+    task.save()
+    
+    try:
+        count = 0
+        with transaction.atomic():
+            
+            if sites:
+                
+                for site_id in sites:
+                    roles=UserRole.objects.filter(user_id=user_id, site_id = site_id, group_id = group_id, ended_at=None)
+                    for role in roles:
+                        role.ended_at = datetime.datetime.now()
+                        role.save()
+                        count = count + 1
+
+
+            if regions:
+                for region_id in regions:
+                    sites = Site.objects.filter(region_id=region_id[1:])    
+                    
+                    for site_id in sites:
+                        roles=UserRole.objects.filter(user_id=user_id, site_id = site_id, group_id = group_id, ended_at=None)
+                        for role in roles:
+                            role.ended_at = datetime.datetime.now()
+                            role.save()
+                            count = count + 1
+
+            if projects:
+                for project_id in projects: 
+                    sites = Site.objects.filter(project_id = project_id[1:])    
+                    for site_id in sites:
+                        roles=UserRole.objects.filter(user_id=user_id, site_id = site_id, group_id = group_id, ended_at=None)
+                        for role in roles:
+                            role.ended_at = datetime.datetime.now()
+                            role.save()
+                            count = count + 1
+
+            task.status = 2
+            task.save()
+            if group_id == "3":
+                extra_message= "removed " + str(count) + "Reviewer Roles"
+            else:
+                extra_message= "removed " + str(count) + " Supervisor Roles"
+
+            noti = task.logs.create(source=task.user, type=35, title="Remove Roles",
+                                       content_object=user.user_profile, recipient=task.user,
+                                       extra_message=extra_message)
+    except Exception as e:
+        task.description = "ERROR: " + str(e.message) 
+        task.status = 3
+        task.save()
+        print 'Role Remove Unsuccesfull. %s' % e
+        print e.__dict__
+        noti = task.logs.create(source=task.user, type=432, title="Role Remove for ",
+                                       content_object=user.user_profile, recipient=task.user,
+                                       extra_message="@error " + u'{}'.format(e.message))
+
+
+@shared_task()
+def UnassignAllProjectRolesAndSites(task_prog_obj_id, project_id):
+    time.sleep(2)
+    
+    task = CeleryTaskProgress.objects.get(pk=task_prog_obj_id)
+    task.status=1
+    task.save()
+    project = Project.all_objects.get(pk=project_id)
+    try:
+        
+        sites_count = 0
+        roles_count = 0
+
+        with transaction.atomic():        
+            roles=UserRole.objects.filter(project_id = project_id, ended_at=None)
+            for role in roles:
+                role.ended_at = datetime.datetime.now()
+                role.save()
+                roles_count = roles_count + 1
+   
+            sites=Site.objects.filter(project_id = project_id)
+            for site in sites:
+                site.is_active = False
+                site.save()
+                sites_count = sites_count + 1
+
+            task.status = 2
+            task.save()
+            
+            extra_message= "removed " + str(roles_count) + " User Roles and " + str(sites_count) + " sites "
+
+            
+            noti = task.logs.create(source=task.user, type=35, title="Remove Roles",
+                                           content_object=project, recipient=task.user,
+                                           extra_message=extra_message)
+    except Exception as e:
+        task.description = "ERROR: " + str(e.message) 
+        task.status = 3
+        task.save()
+        print 'Role Remove Unsuccesfull. %s' % e
+        print e.__dict__
+        noti = task.logs.create(source=task.user, type=432, title="Role Remove for ",
+                                       content_object=project, recipient=task.user,
+                                       extra_message="@error " + u'{}'.format(e.message))
+
+
+@shared_task()
+def UnassignAllSiteRoles(task_prog_obj_id, site_id):
+    time.sleep(2)
+    site = Site.all_objects.get(pk=site_id)
+    task = CeleryTaskProgress.objects.get(pk=task_prog_obj_id)
+    task.status=1
+    task.save()
+    
+    try:
+        count = 0
+        with transaction.atomic():        
+            roles=UserRole.objects.filter(site_id = site_id, ended_at=None)
+            for role in roles:
+                role.ended_at = datetime.datetime.now()
+                role.save()
+                count = count + 1
+
+            task.status = 2
+            task.save()
+            
+            extra_message= "removed " + str(count) + " User Roles "
+
+            noti = task.logs.create(source=task.user, type=35, title="Remove Roles",
+                                       content_object=site, recipient=task.user,
+                                       extra_message=extra_message)
+    except Exception as e:
+        task.description = "ERROR: " + str(e.message) 
+        task.status = 3
+        task.save()
+        print 'Role Remove Unsuccesfull. %s' % e
+        print e.__dict__
+        noti = task.logs.create(source=task.user, type=432, title="Role Remove for ",
+                                       content_object=site, recipient=task.user,
+                                       extra_message="@error " + u'{}'.format(e.message))
+
+
+    
+@shared_task()
 def bulkuploadsites(task_prog_obj_id, source_user, file, pk):
     time.sleep(2)
     project = Project.objects.get(pk=pk)
@@ -123,7 +265,7 @@ def bulkuploadsites(task_prog_obj_id, source_user, file, pk):
                 if long == "":
                     long = 27.7172
 
-                location = Point(lat, long, srid=4326)
+                location = Point(round(float(lat), 6), round(float(long), 6), srid=4326)
                 region_idf = site.get("region_id", None)
                 type_identifier = int(site.get("type", "0"))
 
@@ -184,6 +326,7 @@ def bulkuploadsites(task_prog_obj_id, source_user, file, pk):
                                        project=project, content_object=project, extra_object=project,
                                        extra_message=extra_message)
     except Exception as e:
+        task.description = "ERROR: " + str(e.message) 
         task.status = 3
         task.save()
         print 'Site Upload Unsuccesfull. %s' % e
@@ -193,8 +336,8 @@ def bulkuploadsites(task_prog_obj_id, source_user, file, pk):
                                        extra_message=str(count) + " Sites @error " + u'{}'.format(e.message))
         
 
-@task()
-def generateCustomReportPdf(task_prog_obj_id, source_user, site_id, base_url, fs_ids, start_date, end_date):
+@shared_task()
+def generateCustomReportPdf(task_prog_obj_id, source_user, site_id, base_url, fs_ids, start_date, end_date, removeNullField):
     task = CeleryTaskProgress.objects.get(pk=task_prog_obj_id)
     task.status = 1
     site=get_object_or_404(Site, pk=site_id)
@@ -204,7 +347,7 @@ def generateCustomReportPdf(task_prog_obj_id, source_user, site_id, base_url, fs
     try:
         buffer = BytesIO()
         report = PDFReport(buffer, 'Letter')
-        pdf = report.generateCustomSiteReport(site_id, base_url, fs_ids, start_date, end_date)
+        pdf = report.generateCustomSiteReport(site_id, base_url, fs_ids, start_date, end_date, removeNullField)
         
         buffer.seek(0)
         pdf = buffer.getvalue()
@@ -219,6 +362,7 @@ def generateCustomReportPdf(task_prog_obj_id, source_user, site_id, base_url, fs
                                    recipient=source_user, content_object=task, extra_object=site,
                                    extra_message=" <a href='"+ task.file.url +"'>Pdf report</a> generation in site")
     except Exception as e:
+        task.description = "ERROR: " + str(e.message) 
         task.status = 3
         task.save()
         print 'Report Gen Unsuccesfull. %s' % e
@@ -369,7 +513,7 @@ def siteDetailsGenerator(project, sites, ws):
         return False, e.message
 
 
-@task()
+@shared_task()
 def generateSiteDetailsXls(task_prog_obj_id, source_user, project_id, region_id):
     task = CeleryTaskProgress.objects.get(pk=task_prog_obj_id)
     task.status = 1
@@ -409,6 +553,7 @@ def generateSiteDetailsXls(task_prog_obj_id, source_user, project_id, region_id)
                                    extra_message=" <a href='"+ task.file.url +"'>Xls sites detail report</a> generation in project")
 
     except Exception as e:
+        task.description = "ERROR: " + str(e.message) 
         task.status = 3
         print e.__dict__
         task.save()
@@ -419,7 +564,7 @@ def generateSiteDetailsXls(task_prog_obj_id, source_user, project_id, region_id)
 
 
 
-@task()
+@shared_task()
 def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_url, fs_ids, start_date, end_date, filterRegion):
     task = CeleryTaskProgress.objects.get(pk=task_prog_obj_id)
     task.status = 1
@@ -560,6 +705,7 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
                                    extra_message=" <a href='"+ task.file.url +"'>Xls report</a> generation in project")
 
     except Exception as e:
+        task.description = "ERROR: " + str(e.message) 
         task.status = 3
         task.save()
         print 'Report Gen Unsuccesfull. %s' % e
@@ -569,7 +715,7 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
                                        extra_message="@error " + u'{}'.format(e.message))
         buffer.close()
         
-@task()
+@shared_task()
 def importSites(task_prog_obj_id, source_user, f_project, t_project, meta_attributes, regions, ignore_region):
     time.sleep(2)
     task = CeleryTaskProgress.objects.get(pk=task_prog_obj_id)
@@ -670,8 +816,10 @@ def importSites(task_prog_obj_id, source_user, f_project, t_project, meta_attrib
                                        content_object=t_project, recipient=source_user,
                                        extra_object=f_project)        
     except Exception as e:
+        task.description = "ERROR: " + str(e.message) 
         task.status = 3
         task.save()
+        print e.__dict__
         if f_project.cluster_sites and not ignore_region:
             noti = FieldSightLog.objects.create(source=source_user, type=430, title="Bulk Project import sites",
                                        content_object=t_project, recipient=source_user,
@@ -730,8 +878,10 @@ def multiuserassignproject(task_prog_obj_id, source_user, org_id, projects, user
                                            extra_message=str(roles_created) + " new Project Manager Roles in " + str(projects_count) + " projects ")
         
     except Exception as e:
+        task.description = "ERROR: " + str(e.message) 
         task.status = 3
         task.save()
+        print e.__dict__
         noti = FieldSightLog.objects.create(source=source_user, type=421, title="Bulk Project User Assign",
                                        content_object=org, recipient=source_user,
                                        extra_message=str(users_count)+" people in "+str(projects_count)+" projects ")
@@ -799,6 +949,8 @@ def multiuserassignsite(task_prog_obj_id, source_user, project_id, sites, users,
         
     except Exception as e:
         task.status = 3
+        task.description = "ERROR: " + str(e.message) 
+        print e.__dict__
         task.save()
         noti = FieldSightLog.objects.create(source=source_user, type=422, title="Bulk Sites User Assign",
                                        content_object=project, recipient=source_user,
@@ -876,6 +1028,7 @@ def multiuserassignregion(task_prog_obj_id, source_user, project_id, regions, us
         task.description = "Assign "+str(users_count)+" people in "+str(sites_count)+" regions. ERROR: " + str(e) 
         task.status = 3
         task.save()
+        print e.__dict__
         noti = FieldSightLog.objects.create(source=source_user, type=422, title="Bulk Region User Assign",
                                        content_object=project, recipient=source_user,
                                        extra_message=group_name +" for "+str(users_count)+" people in "+str(sites_count)+" regions ")

@@ -1,6 +1,6 @@
 import re
 import sys
-from celery import task
+from celery import shared_task
 from django.conf import settings
 from django.core.mail import mail_admins
 from requests import ConnectionError
@@ -14,12 +14,15 @@ from onadata.libs.utils.export_tools import generate_export,\
 from onadata.libs.utils.logger_tools import mongo_sync_status, report_exception
 
 
-def create_async_export(xform, export_type, query, force_xlsx, options=None, is_project=None, id=None):
+def create_async_export(xform, export_type, query, force_xlsx, options=None, is_project=None, id=None, site_id=None):
     username = xform.user.username
     id_string = xform.id_string
 
     def _create_export(xform, export_type):
-        return Export.objects.create(xform=xform, export_type=export_type, fsxf=FieldSightXF.objects.get(pk=id))
+        site_id_int = 0
+        if site_id is not None:
+            site_id_int = int(site_id)
+        return Export.objects.create(xform=xform, export_type=export_type, fsxf=FieldSightXF.objects.get(pk=id), site=site_id_int)
 
     # Generate a placeholder `Export` object to be populated with the export file.
     export = _create_export(xform, export_type)
@@ -88,7 +91,7 @@ def create_async_export(xform, export_type, query, force_xlsx, options=None, is_
     return None
 
 
-@task()
+@shared_task()
 def create_xls_export(username, id_string, export_id, query=None,
                       force_xlsx=True, group_delimiter='/',
                       split_select_multiples=True,
@@ -127,7 +130,7 @@ def create_xls_export(username, id_string, export_id, query=None,
         return gen_export.id
 
 
-@task()
+@shared_task()
 def create_analyser_export(username, id_string, export_id, query=None):
     # Mostly a serving of copy pasta based on the above `create_xls_export()`. Enjoy.
 
@@ -166,7 +169,7 @@ def create_analyser_export(username, id_string, export_id, query=None):
         return gen_export.id
 
 
-@task()
+@shared_task()
 def create_csv_export(username, id_string, export_id, query=None,
                       group_delimiter='/', split_select_multiples=True,
                       binary_select_multiples=False):
@@ -201,7 +204,7 @@ def create_csv_export(username, id_string, export_id, query=None,
         return gen_export.id
 
 
-@task()
+@shared_task()
 def create_kml_export(username, id_string, export_id, query=None):
     # we re-query the db instead of passing model objects according to
     # http://docs.celeryproject.org/en/latest/userguide/tasks.html#state
@@ -229,7 +232,7 @@ def create_kml_export(username, id_string, export_id, query=None):
         return gen_export.id
 
 
-@task()
+@shared_task()
 def create_zip_export(username, id_string, export_id, query=None):
     export = Export.objects.get(id=export_id)
     try:
@@ -256,7 +259,7 @@ def create_zip_export(username, id_string, export_id, query=None):
         return gen_export.id
 
 
-@task()
+@shared_task()
 def create_csv_zip_export(username, id_string, export_id, query=None,
                           group_delimiter='/', split_select_multiples=True,
                           binary_select_multiples=False):
@@ -285,7 +288,7 @@ def create_csv_zip_export(username, id_string, export_id, query=None,
         return gen_export.id
 
 
-@task()
+@shared_task()
 def create_sav_zip_export(username, id_string, export_id, query=None,
                           group_delimiter='/', split_select_multiples=True,
                           binary_select_multiples=False):
@@ -315,7 +318,7 @@ def create_sav_zip_export(username, id_string, export_id, query=None,
         return gen_export.id
 
 
-@task()
+@shared_task()
 def create_external_export(username, id_string, export_id, query=None,
                            token=None, meta=None):
     export = Export.objects.get(id=export_id)
@@ -343,7 +346,7 @@ def create_external_export(username, id_string, export_id, query=None,
         return gen_export.id
 
 
-@task()
+@shared_task()
 def delete_export(export_id):
     try:
         export = Export.objects.get(id=export_id)
@@ -371,7 +374,7 @@ REMONGO_PATTERN = re.compile(r'Total # of records to remongo: -?[1-9]+',
                              re.IGNORECASE)
 
 
-@task()
+@shared_task()
 def email_mongo_sync_status():
     """Check the status of records in the mysql db versus mongodb, and, if
     necessary, invoke the command to re-sync the two databases, sending an

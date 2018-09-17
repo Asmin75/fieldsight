@@ -1,11 +1,13 @@
 from __future__ import unicode_literals
 
-from django.db.models import Sum, F
-from rest_framework import viewsets
+from django.db.models import Sum, F, Q
+from django.shortcuts import get_object_or_404
+from rest_framework import viewsets, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 import rest_framework.status
 
+from onadata.apps.fieldsight.models import Site
 from onadata.apps.fsforms.models import Stage, EducationMaterial, DeployEvent, FInstance
 from onadata.apps.fsforms.serializers.ConfigureStagesSerializer import StageSerializer, SubStageSerializer, \
     SubStageDetailSerializer, EMSerializer, DeploySerializer, FinstanceSerializer
@@ -15,7 +17,7 @@ class StageListViewSet(viewsets.ModelViewSet):
     """
     A simple ViewSet for viewing and editing Main Stages.
     """
-    queryset = Stage.objects.filter(stage_forms__isnull=True, stage__isnull=True).order_by('order')
+    queryset = Stage.objects.filter(stage_forms__isnull=True, stage__isnull=True).order_by('order', 'date_created')
     serializer_class = StageSerializer
 
     def filter_queryset(self, queryset):
@@ -26,7 +28,8 @@ class StageListViewSet(viewsets.ModelViewSet):
         if is_project == "1":
             queryset = queryset.filter(project__id=pk)
         else:
-            queryset = queryset.filter(site__id=pk)
+            project_id = get_object_or_404(Site, pk=pk).project.id
+            queryset = queryset.filter(Q(site__id=pk, project_stage_id=0) |Q (project__id=project_id))
         return queryset.annotate(sub_stage_weight=Sum(F('parent__weight')))
 
     def retrieve_by_id(self, request, *args, **kwargs):
@@ -43,7 +46,7 @@ class StageListViewSet(viewsets.ModelViewSet):
         desc = self.request.data.get('description', "")
         instance.name = name
         instance.description = desc
-        instance.tags = tags;
+        instance.tags = tags
         instance.save()
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
@@ -56,7 +59,7 @@ class SubStageListViewSet(viewsets.ModelViewSet):
     """
     A simple ViewSet for viewing and editing Main Stages.
     """
-    queryset = Stage.objects.filter(stage__isnull=False).order_by('order')
+    queryset = Stage.objects.filter(stage__isnull=False).order_by('order', 'date_created')
     serializer_class = SubStageSerializer
 
     def filter_queryset(self, queryset):
@@ -74,7 +77,7 @@ class SubStageDetailViewSet(viewsets.ModelViewSet):
     """
     A simple ViewSet for viewing and editing Sub Stages.
     """
-    queryset = Stage.objects.all().order_by('order')
+    queryset = Stage.objects.all().order_by('order', 'date_created')
     serializer_class = SubStageDetailSerializer
 
     # def filter_queryset(self, queryset):

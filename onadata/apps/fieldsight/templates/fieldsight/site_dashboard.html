@@ -82,6 +82,10 @@
 					<br>
 					End Date:
 					<input type="date" value="{% now 'Y-m-d' %}" min="{{ obj.date_created.date|date:'Y-m-d'}}" max="{% now 'Y-m-d' %}" name="enddate" id="enddate">
+					<br>
+
+					Remove Null Fields : <input type="checkbox" id="removeNullField" style="left: 0px;" name="removeNullValues"
+					>
 				</div>
 			</div>
 			<div class="modal-footer">
@@ -140,11 +144,7 @@
 										{% if not is_supervisor_only %}
 										<a class="dropdown-item" href="{% url 'fieldsight:site-edit' obj.pk %}"><i class="la la-edit"></i>{% trans 'Edit Site' %}</a>
 										{% endif %}
-										{% verbatim %}
-										<div id="export_zip_imgs">
 										
-										</div>
-										{% endverbatim %}
 									</div>
 								</span>
 								{% endif %}
@@ -166,6 +166,7 @@
 														<p>{{ obj.address }}{% if obj.get_country == "" %}, {{ obj.get_country_display }}{% endif %}</p>
 														<p>{{ obj.email }}</p>
 														{% if obj.region %}
+
 															<p>{% if obj.region.name == "" or obj.region.name == None %}{{ obj.region.identifier }}{% else %}{{ obj.region.name }}{% endif %}</p>
 														{% endif %}
 													</div>
@@ -339,7 +340,7 @@
 														{% for instance in pending_data %}
 														<tr>
 															<td class="align-middle">
-																<a title="View submission detail" href="{% url 'forms:instance' instance.site_fxf.pk %}#/{{ instance.instance.id|stringformat:'d'}}"><strong>{{ instance.site_fxf.xf.title}}</strong></a>
+																<a title="View submission detail" href="{% url 'forms:instance' instance.fsxf.pk %}#/{{ instance.instance.id|stringformat:'d'}}"><strong>{{ instance.fsxf.xf.title}}</strong></a>
 																<br/>
 																<a href="{% url 'users:profile' instance.submitted_by.id %}" title="View details of user"><small><i class="la la-user"></i>{{ instance.submitted_by }}</small></a>
 																&nbsp;
@@ -370,7 +371,7 @@
 														{% for instance in rejected_data %}
 														<tr>
 															<td class="align-middle">
-																<a title="View submission detail" href="{% url 'forms:instance' instance.site_fxf.pk %}#/{{ instance.instance.id|stringformat:'d'}}"><strong>{{ instance.site_fxf.xf.title}}</strong></a>
+																<a title="View submission detail" href="{% url 'forms:instance' instance.fsxf.pk %}#/{{ instance.instance.id|stringformat:'d'}}"><strong>{{ instance.fsxf.xf.title}}</strong></a>
 																<br/>
 																<a href="{% url 'users:profile' instance.submitted_by.id %}" title="View details of user"><small><i class="la la-user"></i>{{ instance.submitted_by }}</small></a>
 																&nbsp;
@@ -402,7 +403,7 @@
 														{% for instance in flagged_data %}
 														<tr>
 															<td class="align-middle">
-																<a title="View submission detail" href="{% url 'forms:instance' instance.site_fxf.pk %}#/{{ instance.instance.id|stringformat:'d'}}"><strong>{{ instance.site_fxf.xf.title}}</strong></a>
+																<a title="View submission detail" href="{% url 'forms:instance' instance.fsxf.pk %}#/{{ instance.instance.id|stringformat:'d'}}"><strong>{{ instance.fsxf.xf.title}}</strong></a>
 																<br/>
 																<a href="{% url 'users:profile' instance.submitted_by.id %}" title="View details of user"><small><i class="la la-user"></i>{{ instance.submitted_by }}</small></a>
 																&nbsp;
@@ -434,7 +435,7 @@
 														{% for instance in approved_data %}
 														<tr>
 															<td class="align-middle">
-																<a title="View submission detail" href="{% url 'forms:instance' instance.site_fxf.pk %}#/{{ instance.instance.id|stringformat:'d'}}"><strong>{{ instance.site_fxf.xf.title}}</strong></a>
+																<a title="View submission detail" href="{% url 'forms:instance' instance.fsxf.pk %}#/{{ instance.instance.id|stringformat:'d'}}"><strong>{{ instance.fsxf.xf.title}}</strong></a>
 																<br/>
 																<a href="{% url 'users:profile' instance.submitted_by.id %}" title="View details of user"><small><i class="la la-user"></i>{{ instance.submitted_by }}</small></a>
 																&nbsp;
@@ -477,6 +478,11 @@
 			<div class="widget-info margin-top bg-white padding" id = "recentPicutres" data-mh="eqtd">
 				<div class="widget-head">
 					<h4>Recent Pictures</h4>
+					{% verbatim %}
+					<div id="export_zip_imgs" class="action-right">
+					
+					</div>
+					{% endverbatim %}
 				</div>
 				<div class="row">
 					<!-- ko foreach: allImages  -->
@@ -784,6 +790,13 @@
                         }
                         </div>
                         )
+                }
+                else if(obj.question_type=='Media'){                  
+                    return(
+		                <div style={style}>
+		                    {obj.question_text} : <a href="{obj.answer}">Attachment</a>
+		                </div>)
+                	
                 }
                 else{
                 return(
