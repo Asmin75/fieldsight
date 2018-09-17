@@ -652,7 +652,7 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
             row=[]
 
             for col_num in range(len(head_columns)):
-                row.append(head_columns[col_num]['question_label'], "")    
+                row.append(head_columns[col_num].get('question_label', ""))    
                 ws[0]=row
 
             
