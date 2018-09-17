@@ -643,7 +643,7 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
                         head_columns = [{'question_name':'identifier','question_label':'identifier'}, {'question_name':'name','question_label':'name'}, {'question_name':'status','question_label':'status'}] + questions  
 
                     for col_num in range(len(head_columns)):
-                        ws.cell(row=row_num, column=col_num, answers[head_columns[col_num]['question_name']])
+                        ws.cell(row=row_num, column=col_num, value=answers[head_columns[col_num]['question_name']])
                     
                     row_num += 1
             
@@ -651,7 +651,7 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
             
 
             for col_num in range(len(head_columns)):
-                ws.cell(row=0, column=col_num, head_columns[col_num]['question_label'])
+                ws.cell(row=0, column=col_num, value=head_columns[col_num]['question_label'])
             
             
             if repeat_answers:
@@ -666,16 +666,16 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
                         for answer in site_r_answers['answers']:
                             row_num += 1                        
                             col_no = 2
-                            wr.cell(row=row_num, column=1, k)
-                            wr.cell(row=row_num, column=2, site_r_answers['name'])
+                            wr.cell(row=row_num, column=1, value=k)
+                            wr.cell(row=row_num, column=2, value=site_r_answers['name'])
                             
                             for col_num in range(len(repeat_questions)):
                                 ws.cell(row=row_num, column=col_num, value=answers[head_columns[col_num]['question_name']])
                                 col_no += 1
 
 
-                    wr.cell(row=0, column=1, 'Identifier')
-                    wr.cell(row=0, column=2, 'name')
+                    wr.cell(row=0, column=1, value='Identifier')
+                    wr.cell(row=0, column=2, value='name')
                     col_no=2
 
                     #for loop needed.
