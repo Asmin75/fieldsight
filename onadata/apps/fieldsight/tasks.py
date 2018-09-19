@@ -614,6 +614,8 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
                 if ch in sheet_name:
                     sheet_name=sheet_name.replace(ch,"_")
 
+            return sheet_name
+
         for form in forms:
             form_id += 1
             sheet_name = generate_sheet_name(form.xf.title)
@@ -621,12 +623,11 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
             
             head_columns = [{'question_name':'No Submission','question_label':'No Submission'}]
             repeat_questions = []
-            repeat_answers = {}
+            repeat_answers = []
 
-            ws.append([])
+            ws.append(['Header'])
 
             for formresponse in form.project_form_instances.all():
-                
                 if formresponse.site:
                     if not formresponse.site_id in response_sites:
                         response_sites.append(formresponse.site_id)
@@ -637,54 +638,45 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
                     answers['status'] = formresponse.get_form_status_display()
                     
                     if r_question_answers:
-                        repeat_answers[formresponse.site.identifier] = {'name': formresponse.site.name, 'answers':r_answers, 'r_question_answers':r_question_answers}
+
+                        repeat_answers.append({'name': formresponse.site.name, 'identifier': formresponse.site.identifier, 'repeated': r_question_answers })
 
                     if len([{'question_name':'identifier','question_label':'identifier'}, {'question_name':'name','question_label':'name'}] + questions) > len(head_columns):
                         head_columns = [{'question_name':'identifier','question_label':'identifier'}, {'question_name':'name','question_label':'name'}, {'question_name':'status','question_label':'status'}] + questions  
                     row=[]
-                    for col_num in range(len(head_columns)):
-                        row.append(site.get(answers[head_columns[col_num]['question_name']], ""))    
-                        ws.append(row)
-                    
-            
 
-            
-            row=[]
+                    for col_num in range(len(head_columns)):
+                        row.append(answers.get(head_columns[col_num]['question_name'], ""))    
+                    ws.append(row)
 
             for col_num in range(len(head_columns)):
-                row.append(head_columns[col_num].get('question_label', ""))    
-                ws[0]=row
-
+                ws.cell(row=1, column=col_num+1).value = head_columns[col_num].get('question_label', "")
             
             
             if repeat_answers:
-                for k,v in repeat_answers.values()[0]['r_question_answers'].items():
-                    max_repeats = 0
-                    sheet_name = generate_sheet_name("Rep. "+ form.xf.title)
-                    wr=wb.create_sheet(title=sheet_name)
-                    row_num = 0
+                for group_id, group in repeat_answers[0]['repeated'].items():
                     
-                    for k, site_r_answers in repeat_answers.items():
-                        
-                        for answer in site_r_answers['answers']:
-                            row_num += 1                        
-                            col_no = 2
-                            wr.cell(row=row_num, column=1, value=k)
-                            wr.cell(row=row_num, column=2, value=site_r_answers['name'])
-                            
-                            for col_num in range(len(repeat_questions)):
-                                ws.cell(row=row_num, column=col_num).value = answers[head_columns[col_num]['question_name']]
-                                col_no += 1
+                    sheet_name = generate_sheet_name("rep-"+group_id)
+                    print sheet_name
+                    wr=wb.create_sheet(title=sheet_name)
+                    wr.append(['Header'])
+                    for repeat in repeat_answers:
 
+                        for answer in repeat['repeated'][group_id]['answers']:
+                            row = [repeat['identifier'], repeat['name']]
+                            for question in group['questions']:
+                                row.append(answer.get(question['question_name'], ""))    
+                            wr.append(row)
+                                
 
-                    wr.cell(row=0, column=1).value = 'Identifier'
-                    wr.cell(row=0, column=2).value = 'name'
-                    col_no=2
+                    wr.cell(row=1, column=1).value = 'Identifier'
+                    wr.cell(row=1, column=2).value = 'Name'
 
                     #for loop needed.
-                    for col_num in range(len(head_columns)):
-                        ws.cell(row=0, column=col_num+1).value = head_columns[col_num]['question_label']
-                        col_no += 1 
+                    for col_num in range(len(group['questions'])):
+                        wr.cell(row=1, column=col_num+3).value = group['questions'][col_num]['question_label']
+                        
+
         if not forms:
             ws = wb.add_sheet('No Forms')
         
@@ -706,6 +698,7 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
         noti = task.logs.create(source=source_user, type=32, title="Xls Report generation in project",
                                    recipient=source_user, content_object=task, extra_object=project,
                                    extra_message=" <a href='"+ task.file.url +"'>Xls report</a> generation in project")
+        
 
     except Exception as e:
         task.description = "ERROR: " + str(e.message) 
@@ -717,6 +710,7 @@ def exportProjectSiteResponses(task_prog_obj_id, source_user, project_id, base_u
                                        content_object=project, recipient=source_user,
                                        extra_message="@error " + u'{}'.format(e.message))
         buffer.close()
+
         
 @shared_task()
 def importSites(task_prog_obj_id, source_user, f_project, t_project, meta_attributes, regions, ignore_region):
