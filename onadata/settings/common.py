@@ -244,6 +244,7 @@ INSTALLED_APPS = (
     'onadata.libs',
     'onadata.apps.survey_report',
     'onadata.apps.export',
+    'onadata.apps.report',
     'pure_pagination',
     'linaro_django_pagination',
     'webstack_django_sorting',

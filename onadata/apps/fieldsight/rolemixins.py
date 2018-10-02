@@ -13,6 +13,7 @@ from django.views.generic import TemplateView
 from onadata.apps.fieldsight.models import Organization, Project, Site
 from onadata.apps.fsforms.models import FieldSightXF, FInstance 
 from onadata.apps.users.models import UserProfile
+from onadata.apps.report.models import ReportDashboard
 from .helpers import json_from_object
 from onadata.apps.userrole.models import UserRole
 from django.shortcuts import get_object_or_404
@@ -66,7 +67,7 @@ class ProjectRoleMixin(LoginRequiredMixin):
         
         if user_role:
             return super(ProjectRoleMixin, self).dispatch(request, *args, **kwargs)
-        organization_id = Project.objects.get(pk=project_id).organization.id
+        organization_id = get_object_or_404(Project, pk=project_id).organization.id
         user_role_asorgadmin = request.roles.filter(user_id = user_id, organization_id = organization_id, group_id=1)
         
         if user_role_asorgadmin:
@@ -86,7 +87,7 @@ class ReadonlyProjectLevelRoleMixin(LoginRequiredMixin):
         if user_role:
             return super(ReadonlyProjectLevelRoleMixin, self).dispatch(request, is_donor_only=False, *args, **kwargs)
 
-        organization_id = Project.objects.get(pk=project_id).organization.id
+        organization_id = get_object_or_404(Project, pk=project_id).organization.id
         user_role_asorgadmin = request.roles.filter(organization_id = organization_id, group_id=1)
         
         if user_role_asorgadmin:
@@ -111,7 +112,7 @@ class ReadonlySiteLevelRoleMixin(LoginRequiredMixin):
         if user_role:
             return super(ReadonlySiteLevelRoleMixin, self).dispatch(request, is_donor_only=False, *args, **kwargs)
         
-        project = Site.objects.get(pk=site_id).project
+        project = get_object_or_404(Site, pk=site_id).project
         user_role_aspadmin = request.roles.filter(user_id = user_id, project_id = project.id, group_id=2)
         if user_role_aspadmin:
             return super(ReadonlySiteLevelRoleMixin, self).dispatch(request, is_donor_only=False, *args, **kwargs)
@@ -139,7 +140,7 @@ class DonorSiteViewRoleMixin(LoginRequiredMixin):
         
         if user_role:
             return super(DonorSiteViewRoleMixin, self).dispatch(request, *args, **kwargs)
-        organization_id = Project.objects.get(pk=site.project_id).organization.id
+        organization_id = get_object_or_404(Project, pk=site.project_id).organization.id
         user_role_asorgadmin = request.roles.filter(user_id = user_id, organization_id = organization_id, group_id=1)
         
         if user_role_asorgadmin:
@@ -159,7 +160,7 @@ class DonorRoleMixin(LoginRequiredMixin):
         
         if user_role:
             return super(DonorRoleMixin, self).dispatch(request, *args, **kwargs)
-        organization_id = Project.objects.get(pk=project_id).organization.id
+        organization_id = get_object_or_404(Project, pk=project_id).organization.id
         user_role_asorgadmin = request.roles.filter(user_id = user_id, organization_id = organization_id, group_id=1)
         
         if user_role_asorgadmin:
@@ -180,7 +181,7 @@ class ReviewerRoleMixin(LoginRequiredMixin):
         if user_role:
             return super(ReviewerRoleMixin, self).dispatch(request, *args, **kwargs)
         
-        project = Site.objects.get(pk=site_id).project
+        project = get_object_or_404(Site, pk=site_id).project
         user_role_aspadmin = request.roles.filter(user_id = user_id, project_id = project.id, group_id=2)
         if user_role_aspadmin:
             return super(ReviewerRoleMixin, self).dispatch(request, *args, **kwargs)
@@ -209,7 +210,7 @@ class SiteRoleMixin(LoginRequiredMixin):
         if user_role:
             return super(SiteRoleMixin, self).dispatch(request, is_supervisor_only=False, *args, **kwargs)
         
-        project = Site.objects.get(pk=site_id).project
+        project = get_object_or_404(Site, pk=site_id).project
         user_role_aspadmin = request.roles.filter(project_id = project.id, group_id=2)
         if user_role_aspadmin:
             return super(SiteRoleMixin, self).dispatch(request, is_supervisor_only=False, *args, **kwargs)
@@ -234,7 +235,7 @@ class SiteDeleteRoleMixin(LoginRequiredMixin):
         site_id = self.kwargs.get('pk')
         user_id = request.user.id
         
-        project = Site.objects.get(pk=site_id).project
+        project = get_object_or_404(Site, pk=site_id).project
         user_role_aspadmin = request.roles.filter(user_id = user_id, project_id = project.id, group_id=2)
         
         if user_role_aspadmin:
@@ -259,7 +260,7 @@ class ProjectRoleMixinDeleteView(LoginRequiredMixin):
         project_id = self.kwargs.get('pk')
         user_id = request.user.id
 
-        organization_id = Project.objects.get(pk=project_id).organization.id
+        organization_id = get_object_or_404(Project, pk=project_id).organization_id
         user_role_asorgadmin = request.roles.filter(user_id = user_id, organization_id = organization_id, group_id=1)
         
         if user_role_asorgadmin:
@@ -280,7 +281,7 @@ class ReviewerRoleMixinDeleteView(LoginRequiredMixin):
         
         if user_role:
             return super(SiteSupervisorRoleMixin, self).dispatch(request, *args, **kwargs)
-        project = Site.objects.get(pk=site_id).project
+        project = get_object_or_404(Site, pk=site_id).project
         user_role_aspadmin = request.roles.filter(user_id = user_id, project_id = project.id, group_id=2)
         if user_role_aspadmin:
             return super(ReviewerRoleMixinDeleteView, self).dispatch(request, *args, **kwargs)
@@ -316,7 +317,7 @@ class SPFmixin(LoginRequiredMixin):
             user_role = request.roles.filter(user_id = user_id, site_id = site_id, group_id=3)
             if user_role:
                 return super(SPFmixin, self).dispatch(request, *args, **kwargs)
-            project_id=Site.objects.get(pk=site_id).project.id
+            project_id=get_object_or_404(Site, pk=site_id).project_id
         
         else:
             project_id = self.kwargs.get('pk')
@@ -325,7 +326,7 @@ class SPFmixin(LoginRequiredMixin):
         if user_role:
             return super(SPFmixin, self).dispatch(request, *args, **kwargs)
 
-        organization_id = Project.objects.get(pk=project_id).organization.id
+        organization_id = get_object_or_404(Project, pk=project_id).organization_id
         user_role_asorgadmin = request.roles.filter(user_id = user_id, organization_id = organization_id, group_id=1)
         if user_role_asorgadmin:
             return super(SPFmixin, self).dispatch(request, *args, **kwargs)
@@ -346,7 +347,7 @@ class FormMixin(LoginRequiredMixin):
             user_role = request.roles.filter(site_id = site_id, group_id=3)
             if user_role:
                 return super(FormMixin, self).dispatch(request, fsxf_id, *args, **kwargs)
-            project_id=Site.objects.get(pk=site_id).project.id
+            project_id=get_object_or_404(Site, pk=site_id).project_id
         
         else:
             project_id = form.project.id
@@ -355,7 +356,7 @@ class FormMixin(LoginRequiredMixin):
         if user_role:
             return super(FormMixin, self).dispatch(request, fsxf_id, *args, **kwargs)
 
-        organization_id = Project.objects.get(pk=project_id).organization.id
+        organization_id = get_object_or_404(Project, pk=project_id).organization_id
         user_role_asorgadmin = request.roles.filter(organization_id = organization_id, group_id=1)
         if user_role_asorgadmin:
             return super(FormMixin, self).dispatch(request, fsxf_id, *args, **kwargs)
@@ -375,7 +376,7 @@ class ReadonlyFormMixin(LoginRequiredMixin):
             user_role = request.roles.filter(site_id = site_id, group_id__in=[3,4])
             if user_role:
                 return super(ReadonlyFormMixin, self).dispatch(request, fsxf_id, *args, **kwargs)
-            project_id=Site.objects.get(pk=site_id).project.id
+            project_id = get_object_or_404(Site, pk=site_id).project_id
         
         else:
             project_id = form.project.id
@@ -384,7 +385,7 @@ class ReadonlyFormMixin(LoginRequiredMixin):
         if user_role:
             return super(ReadonlyFormMixin, self).dispatch(request, fsxf_id, *args, **kwargs)
 
-        organization_id = Project.objects.get(pk=project_id).organization.id
+        organization_id = get_object_or_404(Project, pk=project_id).organization_id
         user_role_asorgadmin = request.roles.filter(organization_id = organization_id, group_id = 1)
         if user_role_asorgadmin:
             return super(ReadonlyFormMixin, self).dispatch(request, fsxf_id, *args, **kwargs)
@@ -416,7 +417,7 @@ class ConditionalFormMixin(LoginRequiredMixin):
         if user_role:
             return super(ConditionalFormMixin, self).dispatch(request, fsxf_id, is_read_only= False, *args, **kwargs)
 
-        organization_id = Project.objects.get(pk=project_id).organization.id
+        organization_id = get_object_or_404(Project, pk=project_id).organization_id
         user_role_asorgadmin = request.roles.filter(organization_id = organization_id, group_id=1)
         if user_role_asorgadmin:
             return super(ConditionalFormMixin, self).dispatch(request, fsxf_id, is_read_only= False, *args, **kwargs)
@@ -451,7 +452,7 @@ class EndRoleMixin(LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
         if request.group.name == "Super Admin":
             return super(EndRoleMixin, self).dispatch(request, *args, **kwargs)
-        role_to_end = UserRole.objects.get(pk=self.kwargs.get('pk'))
+        role_to_end = get_object_or_404(UserRole, pk=self.kwargs.get('pk'))
         if role_to_end.group_id == 2:
             user_role = request.roles.filter(organization_id = role_to_end.organization_id, group_id=1)
             if user_role:
@@ -514,6 +515,27 @@ class FullMapViewMixin(LoginRequiredMixin):
         if user_role:
             return super(FullMapViewMixin, self).dispatch(request, *args, **kwargs)
         
+        raise PermissionDenied()
+
+
+
+class ReportRoleMixin(LoginRequiredMixin):
+    def dispatch(self, request, *args, **kwargs):
+        if request.group.name == "Super Admin":
+            return super(ProjectRoleMixin, self).dispatch(request, *args, **kwargs)
+
+        reportDashboard = get_object_or_404(ReportDashboard, pk=self.kwargs.get('pk'))
+        user_id = request.user.id
+        user_role = request.roles.filter(user_id = user_id, project_id = reportDashboard.project_id, group_id=2)
+        
+        if user_role:
+            return super(ProjectRoleMixin, self).dispatch(request, *args, **kwargs)
+        organization_id = reportDashboard.project.organization.id
+        user_role_asorgadmin = request.roles.filter(user_id = user_id, organization_id = organization_id, group_id=1)
+        
+        if user_role_asorgadmin:
+            return super(ProjectRoleMixin, self).dispatch(request, *args, **kwargs)
+
         raise PermissionDenied()
 
 # for api mixins/permissions
