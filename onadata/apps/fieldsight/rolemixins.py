@@ -522,19 +522,19 @@ class FullMapViewMixin(LoginRequiredMixin):
 class ReportRoleMixin(LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
         if request.group.name == "Super Admin":
-            return super(ProjectRoleMixin, self).dispatch(request, *args, **kwargs)
+            return super(ReportRoleMixin, self).dispatch(request, *args, **kwargs)
 
         reportDashboard = get_object_or_404(ReportDashboard, pk=self.kwargs.get('pk'))
         user_id = request.user.id
         user_role = request.roles.filter(user_id = user_id, project_id = reportDashboard.project_id, group_id=2)
         
         if user_role:
-            return super(ProjectRoleMixin, self).dispatch(request, *args, **kwargs)
+            return super(ReportRoleMixin, self).dispatch(request, *args, **kwargs)
         organization_id = reportDashboard.project.organization.id
         user_role_asorgadmin = request.roles.filter(user_id = user_id, organization_id = organization_id, group_id=1)
         
         if user_role_asorgadmin:
-            return super(ProjectRoleMixin, self).dispatch(request, *args, **kwargs)
+            return super(ReportRoleMixin, self).dispatch(request, *args, **kwargs)
 
         raise PermissionDenied()
 

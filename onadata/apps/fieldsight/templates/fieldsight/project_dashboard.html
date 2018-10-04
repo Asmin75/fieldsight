@@ -171,6 +171,7 @@ assigntoken(csrf_token);
 								<a class="dropdown-item" href="{% url 'fieldsight:project-edit' obj.pk %}"><i class="la la-clipboard"></i> {% trans 'Edit Project' %}</a>
 								{% if request.group.name == "Super Admin" %}
 								<button class="dropdown-item"  data-toggle="modal" data-target="#importModal"><i class="la la-clipboard"></i> {% trans 'Import Sites' %}</button>
+								<a href="{% url 'report:all' obj.pk %}"><button class="dropdown-item"  data-toggle="modal" data-target="#importModal"><i class="la la-clipboard"></i> {% trans 'Project Dashboard' %}</button></a>
 								{% endif %}
 								{% if obj.cluster_sites %}
 								<a class="dropdown-item" href="{% url 'fieldsight:multi_site_region_assign' obj.id%}"><i class="la la-map-marker"></i>{% trans 'Assign' %} {% trans 'sites' %} {% trans 'to' %} {% trans 'regions' %}</a>

@@ -1,7 +1,7 @@
 from django import forms
-from onadata.apps.report.models import ProjectReportList
+from onadata.apps.report.models import ReportDashboard
 
 class ProjectReportListForm(forms.ModelForm):
     class Meta:
-        model = ProjectReportList
+        model = ReportDashboard
         fields = ('name',)

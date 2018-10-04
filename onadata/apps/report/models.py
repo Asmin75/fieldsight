@@ -18,7 +18,7 @@ class ReportDeployedDashboardManager(models.Manager):
 
 class ReportDashboard(models.Model):
     project = models.ForeignKey(Project, related_name="project_report_dashboards")
-    dashboadData = JSONField(default=dict)
+    dashboardData = JSONField(null=True, blank=True, default=dict)
     name = models.CharField(max_length=255, blank=True)
     date_created = models.DateTimeField(auto_now_add=True, blank=True)
     date_updated = models.DateTimeField(null=True, blank=True)
@@ -31,3 +31,6 @@ class ReportDashboard(models.Model):
     deployed_objects = ReportDeployedDashboardManager()
     
     logs = GenericRelation('eventlog.FieldSightLog')
+
+    def clean(self):
+        print self, "here"

@@ -8,13 +8,13 @@
                         <h3><i class="la la-tasks"></i>{% if request.GET.q %}{% trans 'Search' %} {% trans 'result' %} {% trans 'for' %} "{{request.GET.q}}"{% else %}{% trans 'Project' %}{% trans 'Reports' %}{% endif %}</h3>
 						<div class="panel-heading-right">
 							<a class="btn btn-sm btn-primary" data-toggle="collapse" href="#searchOrganization" aria-expanded="false" aria-controls="searchOrganization"><i class="la la-search"></i>{% trans 'Search' %}</a>
-							<a href="{% url 'report:report_create' project.id %}" title="" class="btn btn-sm btn-primary"><i class="la la-plus"></i>{% trans 'Add' %} {% trans 'New'%}</a>
+							<a href="{% url 'report:create' project.id %}" title="" class="btn btn-sm btn-primary"><i class="la la-plus"></i>{% trans 'Add' %} {% trans 'New'%}</a>
 						</div>
                     </header>
 					<div class="panel-body">
 						<!--Search Organization-->
 						<div class="collapse margin-top" id="searchOrganization">
-							<form method="GET" class="padding" action="{% url 'report:all'  pk %}">
+							<form method="GET" class="padding" action="{% url 'report:all' project.id %}">
 								<div class="row">
 									<div class="col-md-6 ml-md-auto">
 										<div class="input-group">
@@ -41,7 +41,11 @@
 									</div>
 									<div class="action-button margin-top">
 										<a href="" title="" class="btn btn-sm btn-primary">{% trans 'View' %}</a>
-										<a href="{% url 'report:deploy' obj.pk %}" title="" class="btn btn-sm btn-primary">{% trans 'Deploy' %}</a>
+										{% if obj.is_deployed %}
+										<a href="{% url 'report:undeploy' obj.pk %}" title="" class="btn btn-sm btn-danger">{% trans 'Un Deploy' %}</a>
+										{% else %}
+										<a href="{% url 'report:deploy' obj.pk %}" title="" class="btn btn-sm btn-success">{% trans 'Deploy' %}</a>
+										{% endif %}
 										<a href="{% url 'report:delete' obj.pk %}" title="" class="btn btn-sm btn-primary">{% trans 'Delete' %}</a>
 									</div>
 								</div>

@@ -71,6 +71,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
         
         except Exception as e:
             raise ValidationError("Got error on: {}".format(e))
+        
         return instance
 
 
