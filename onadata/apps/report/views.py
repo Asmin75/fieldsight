@@ -16,22 +16,22 @@ class GetSelectTypeCount(View):
         question_name = data['body'].get('question_name')
         fsxf_id = data['body'].get('fsxf_id')
         response = get_multiple_options_count(self.kwargs.get('pk'), fsxf_id, question_name)
-        status = 200 if response.get('status', 'failed') == "ok" else 500
-        return JsonResponse(response, safe=False, status=status)
+        status = 500 if response.get('status', 'ok') == "failed" else 200
+        return JsonResponse(response.get('result', []), safe=False, status=status)
 
 
-class ReportDashboardView(View):
-    def get(self, request, **kwargs):
-        question_name = request.POST.get('question_name')
-        response = get_multiple_options_count(pk, fsxf_id, question_name)
-        status = 200 if response.get('status', 'ok') == "failed" else 500
-        return JsonResponse(json.loads(response.get('result', {})), status=status)
+# class ReportDashboardView(View):
+#     def get(self, request, **kwargs):
+#         question_name = request.POST.get('question_name')
+#         response = get_multiple_options_count(pk, fsxf_id, question_name)
+#         status = 200 if response.get('status', 'ok') == "failed" else 500
+#         return JsonResponse(json.loads(response.get('result', {})), status=status)
 
-    def post(self, request, **kwargs):
-        question_name = request.POST.get('question_name')
-        response = get_multiple_options_count(pk, fsxf_id, question_name)
-        status = 200 if response.get('status', 'ok') == "failed" else 500
-        return JsonResponse(json.loads(response.get('result', {})), status=status)
+#     def post(self, request, **kwargs):
+#         question_name = request.POST.get('question_name')
+#         response = get_multiple_options_count(pk, fsxf_id, question_name)
+#         status = 200 if response.get('status', 'ok') == "failed" else 500
+#         return JsonResponse(json.loads(response.get('result', {})), status=status)
 
 
 class DeleteProjectReport(ReportRoleMixin, View):
