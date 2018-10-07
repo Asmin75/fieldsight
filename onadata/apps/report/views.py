@@ -17,7 +17,7 @@ class GetSelectTypeCount(View):
         fsxf_id = data.get('fsxf_id')
         response = get_multiple_options_count(self.kwargs.get('pk'), fsxf_id, question_name)
         status = 200 if response.get('status', 'failed') == "ok" else 500
-        return JsonResponse(response.get('result', []), safe=False, status=status)
+        return JsonResponse(response.get('result', {}), safe=False, status=status)
 
 
 class ReportDashboardView(View):
