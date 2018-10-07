@@ -1,9 +1,11 @@
 from django.conf.urls import url
 from .views import ( GetSelectTypeCount, ReportCreate, ProjectReportList, DeleteProjectReport, DeployProjectReport, UnDeployProjectReport, ReportUpdate )
 from .viewsets.report import ReportDashboardViewSet
+from django.views.decorators.csrf import csrf_exempt
+
 urlpatterns = [
     
-    url(r'^api/getSelectQuestionCount/(?P<pk>\d+)/$', GetSelectTypeCount.as_view(), name='GetSelectTypeCount'),
+    url(r'^api/getSelectQuestionCount/(?P<pk>\d+)/$', csrf_exempt(GetSelectTypeCount.as_view()), name='GetSelectTypeCount'),
     url(r'^api/dashboard-data/(?P<pk>\d+)/$', ReportDashboardViewSet.as_view({'get': 'retrieve', 'post': 'update'}), name='dashboardData'),
 
 

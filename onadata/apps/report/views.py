@@ -1,3 +1,4 @@
+import json
 from django.shortcuts import render, get_object_or_404
 from onadata.apps.report.report_utils import get_multiple_options_count
 from django.views.generic import View, ListView, CreateView, UpdateView
@@ -10,11 +11,12 @@ from onadata.apps.fieldsight.models import Project
 from django.core.urlresolvers import reverse_lazy, reverse
 
 class GetSelectTypeCount(View):
-    def get(self, request, **kwargs):
-    	question_name = request.POST.get('question_name')
-        question_name = request.POST.get('fsxf_id')
-        response = get_multiple_options_count(pk, fsxf_id, question_name)
-        status = 200 if response.get('status', 'ok') == "failed" else 500
+    def post(self, request, **kwargs):
+    	data = json.loads(request.body)
+        question_name = data.get('question_name')
+        fsxf_id = data.get('fsxf_id')
+        response = get_multiple_options_count(self.kwargs.get('pk'), fsxf_id, question_name)
+        status = 200 if response.get('status', 'failed') == "ok" else 500
         return JsonResponse(json.loads(response.get('result', {})), status=status)
 
 
