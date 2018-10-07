@@ -13,8 +13,8 @@ from django.core.urlresolvers import reverse_lazy, reverse
 class GetSelectTypeCount(View):
     def post(self, request, **kwargs):
     	data = json.loads(request.body)
-        question_name = data.body.get('question_name')
-        fsxf_id = data.body.get('fsxf_id')
+        question_name = data['body'].get('question_name')
+        fsxf_id = data['body'].get('fsxf_id')
         response = get_multiple_options_count(self.kwargs.get('pk'), fsxf_id, question_name)
         status = 200 if response.get('status', 'failed') == "ok" else 500
         return JsonResponse(response, safe=False, status=status)
