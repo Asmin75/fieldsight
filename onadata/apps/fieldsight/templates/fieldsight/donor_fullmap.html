@@ -314,7 +314,7 @@
 
         <script src="{% static 'dummy/assets/js/plugins.js' %}"></script>
         
-     <script>
+        <script>
             $(document).ready(function(){
                 //Map Height
                 mapHeight();
@@ -427,13 +427,7 @@
 
             $.getJSON("{% url 'fieldsight:DonorMyProjectsLayers' %}", function (geo_layer) {     
              
-                
-                
 
-
-
-
-                
                 map = L.map('map', {
                       center: [27.717245,85.323959],
                       zoom: 6,
@@ -1070,10 +1064,8 @@
                     }
                 });
             });
-        });
-    });
-
-
+            });
+            });
         </script>
        
 		
