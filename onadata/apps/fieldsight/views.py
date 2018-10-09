@@ -2813,13 +2813,13 @@ class SiteResponseCoordinates(ReadonlySiteLevelRoleMixin, View):
         coord_datas = get_site_responses_coords(pk)
         obj = Site.objects.get(pk=self.kwargs.get('pk'))
         response_coords = list(coord_datas["result"])
-        response_coords.append({'geometry': {'coordinates': [site.latitude, site.longitude], 'type': 'Point'},
+        response_coords.append({'geometry': {'coordinates': [obj.latitude, obj.longitude], 'type': 'Point'},
                                               'properties': {'fs_uuid': 'None',
                                               'id':'#' ,
-                                              'submitted_by': 'Site'},
+                                              'submitted_by': 'site_origin'},
                                               'type': 'Feature'})
         return render(request, 'fieldsight/site_response_map_view.html', {
-            'co_ords': json.dumps(final_coords, cls=DjangoJSONEncoder, ensure_ascii=False).encode('utf8'),
+            'co_ords': json.dumps(response_coords, cls=DjangoJSONEncoder, ensure_ascii=False).encode('utf8'),
             'geo_layers': obj.project.geo_layers.all(),
             'is_donor_only' : kwargs.get('is_donor_only', False)
         })
