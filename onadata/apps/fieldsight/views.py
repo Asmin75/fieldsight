@@ -261,7 +261,8 @@ class Project_dashboard(ProjectRoleMixin, TemplateView):
             'site_visits' : site_visits,
             'active_supervisors' : active_supervisors,
             'new_submissions' : new_submissions,
-            'obj_sites_count' : obj.sites.filter(is_active=True).count()
+            'obj_sites_count' : obj.sites.filter(is_active=True).count(),
+            'progress_report_url' : '/media/' + obj.progress_report.url.split('/media/')[1] if obj.progress_report else None
     }
 
         return dashboard_data
@@ -2925,7 +2926,8 @@ class DonorProjectDashboard(DonorRoleMixin, TemplateView):
             'site_visits' : site_visits,
             'active_supervisors' : active_supervisors,
             'new_submissions' : new_submissions,
-            'obj_sites_count' : obj.sites.filter(is_active=True).count()
+            'obj_sites_count' : obj.sites.filter(is_active=True).count(),
+            'progress_report_url' : '/media/' + obj.progress_report.url.split('/media/')[1] if obj.progress_report else None
     }
         return dashboard_data
 
