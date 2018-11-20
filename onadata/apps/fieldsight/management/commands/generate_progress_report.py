@@ -26,7 +26,7 @@ class Command(BaseCommand):
     
     def handle(self, *args, **options):
 	    count = 0 
-	    projects = Project.objects.filter(active=True)
+	    projects = Project.objects.filter(is_active=True)
 	    for project in projects:
 	    	print project.id
 	        if Site.objects.filter(project_id=project.id).count() < 2000:
