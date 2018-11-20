@@ -30,6 +30,7 @@ def generate_stage_status_report():
 	count = 0 
     projects = Project.objects.filter(active=True)
     for project in projects:
+    	print project.id
         if Site.objects.filter(project_id=project.id).count() < 2000:
             continue
         else: 
