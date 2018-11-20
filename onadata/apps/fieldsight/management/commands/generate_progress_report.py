@@ -18,7 +18,7 @@ from django.core.files.storage import get_storage_class
 from onadata.libs.utils.viewer_tools import get_path
 
 import pyexcel as p
-from .metaAttribsGenerator import get_form_answer, get_form_sub_status, get_form_submission_count, get_form_ques_ans_status
+from onadata.apps.fieldsight.metaAttribsGenerator import get_form_answer, get_form_sub_status, get_form_submission_count, get_form_ques_ans_status
 from django.conf import settings
 
 class Command(BaseCommand):
