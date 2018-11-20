@@ -25,7 +25,7 @@ class Command(BaseCommand):
     help = 'Create progress report for all projects with sites greater than 2000'
     
     def handle(self, *args, **options):
-		count = 0 
+	    count = 0 
 	    projects = Project.objects.filter(active=True)
 	    for project in projects:
 	    	print project.id
