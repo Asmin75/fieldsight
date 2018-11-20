@@ -172,7 +172,7 @@ assigntoken(csrf_token);
 
 								{% else %}
 									{% if obj.progress_report %}
-										<a class="dropdown-item" href="{{ obj.progress_report.url }}"><i class="la la-clipboard"></i>{% trans ' Progress' %} {% trans 'Report' %}</a>
+										<a class="dropdown-item" href="/media/{{ obj.progress_report.url.split('/media/')[1] }}"><i class="la la-clipboard"></i>{% trans ' Progress' %} {% trans 'Report' %}</a>
 								
 									{% else %}
 										<a class="dropdown-item" href="javascript:;" onclick="alert('The report is being generated. It might take time depending upon number of sites.')"><i class="la la-clipboard"></i>{% trans ' Progress' %} {% trans 'Report' %}</a>
