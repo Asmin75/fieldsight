@@ -102,5 +102,5 @@ class Command(BaseCommand):
 	                print 'Report Gen Unsuccesfull. %s' % e
 	                print e.__dict__
 	        
-        self.stdout.write('Created "%s " report for projects with success!' % (count))
-        print datetime.now()
+		self.stdout.write('Created "%s " report for projects with success!' % (count))
+		print datetime.now()
