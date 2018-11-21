@@ -1,6 +1,8 @@
 from datetime import datetime
 from django.core.management.base import BaseCommand
 from onadata.apps.fieldsight.models import TimeZone, Project, ProjectGeoJSON
+import time
+start_time = time.time()
 
 class Command(BaseCommand):
     help = 'Create site data Geojson file backup for all projects'
@@ -20,3 +22,5 @@ class Command(BaseCommand):
         	projectGeoJSON.generate_new()
         self.stdout.write('Created "%s " new projects geo data with success!' % (new_projects))
         print datetime.now()
+        print "Total Execution time %s seconds ---" % (time.time() - start_time)
+        print "---------------------------------------------------------------------------------"
