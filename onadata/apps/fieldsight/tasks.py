@@ -88,10 +88,12 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
     task.status = 1
     task.save()
     try:
-        data = []
-        ss_index = {}
+        data=[]
+        ss_index = []
         stages_rows = []
         head_row = ["Site ID", "Name", "Region ID", "Latitude", "longitude", "Status"]
+
+        query={}
         
         stages = project.stages.filter(stage__isnull=True)
         for stage in stages:
@@ -102,44 +104,64 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
 
                 for ss in sub_stages:
                     head_row.append("Sub Stage :"+ss.name)
-                    ss_index.update({head_row.index("Sub Stage :"+ss.name): ss.id})
+                    ss_index.append(str(ss.stage_forms.id))
+
+                    query[str(ss.stage_forms.id)] = Sum(
+                        Case(
+                        When(site_instances__project_fxf_id=ss.stage_forms.id, then=1),
+                        default=0, output_field=IntegerField()
+                        ))
+
+        query['flagged'] = Sum(
+            Case(
+                When(site_instances__form_status=2, then=1),
+                default=0, output_field=IntegerField()
+            ))
+
+        query['rejected'] = Sum(
+            Case(
+                When(site_instances__form_status=1, then=1),
+                default=0, output_field=IntegerField()
+            ))
+         
+        query['submission'] = Count('site_instances')
+
         head_row.extend(["Site Visits", "Submission Count", "Flagged Submission", "Rejected Submission"])
         data.append(head_row)
-        total_cols = len(head_row) - 6 # for non stages
-        for site in project.sites.filter(is_active=True, is_survey=False):
-            flagged_count = 0 
-            rejected_count = 0
-            submission_count = 0
-
-            if site.region:
-                site_row = [site.identifier, site.name, site.region.identifier, site.latitude, site.longitude, site.site_status]
-            else:
-                site_row = [site.identifier, site.name, site.region_id, site.latitude, site.longitude, site.site_status]
-
-            site_row.extend([None]*total_cols)
-            for k, v in ss_index.items():
-                if Stage.objects.filter(id=v).count() == 1:
-                    site_sub_stage = Stage.objects.get(id=v)
-                    site_row[k] = site_sub_stage.site_submission_count(v, site.id)
-                    submission_count += site_row[k]
-                    flagged_count += site_sub_stage.flagged_submission_count(v, site.id)
-                    rejected_count += site_sub_stage.rejected_submission_count(v, site.id)
-                else:
-                    site_row[k] = 0
+        
+        sites = Site.objects.filter(project_id=project.id).values('id','identifier', 'name', 'region__identifier', 'address', 'latitude', 'longitude', 'site_status').annotate(**query)
 
 
+        site_visits = settings.MONGO_DB.instances.aggregate([{"$match":{"fs_site": project.id}},  { "$group" : { 
+              "_id" :  { 
+                "fs_site": "$fs_site",
+                "date": { "$substr": [ "$start", 0, 10 ] }
+              },
+           }
+         }, { "$group": { "_id": "$_id.fs_site", "visits": { 
+                  "$push": { 
+                      "date":"$_id.date"
+                  }          
+             }
+         }}])['result']
 
-            site_visits = settings.MONGO_DB.instances.aggregate([{"$match":{"fs_site": str(site.id)}},  { "$group" : { 
-                  "_id" :  
-                    { "$substr": [ "$start", 0, 10 ] }
-                  
-               }
-             }])['result']
+        site_dict = {}
 
-            site_row[-1] = rejected_count
-            site_row[-2] = flagged_count
-            site_row[-3] = submission_count
-            site_row[-4] = len(site_visits) 
+        site_objs = Site.objects.filter(project_id=137)
+
+        for site_obj in site_objs:
+            site_dict[site_obj.id] = {'visits':'','site_status':site_obj.site_status, 'latitude':site_obj.latitude,'longitude':site_obj.longitude}
+
+        for site_visit in site_visits:
+            site_visits_dict[site_visit['_id']]['visits'] = len(site_visit['visits'])
+
+        for site in sites:
+            site_row = [site['identifier'], site['name'], site['region__identifier'], site['address'], site_dict['site.id']['latitude'], site_dict['site.id']['longitude'], site_dict['site.id']['site_status']]
+
+            for stage in ss_index:
+                site_row.append(site.get(stage,0))
+
+            site_row.extend([site_dict[site.get('id')]['visits'], site['submission'], site['flagged'], site['rejected']])
 
             data.append(site_row)
 
