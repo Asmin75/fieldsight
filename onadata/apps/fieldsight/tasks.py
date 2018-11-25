@@ -148,7 +148,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
 
         site_dict = {}
 
-        site_objs = Site.objects.filter(project_id=137)
+        site_objs = Site.objects.filter(project_id=project_id)
         print "Checkpoint 1 started"
         for site_obj in site_objs:
             site_dict[site_obj.id] = {'visits':"No",'site_status':site_obj.site_status, 'latitude':site_obj.latitude,'longitude':site_obj.longitude}
@@ -160,7 +160,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
                 pass
         print "Checkpoint 2 finished"
         for site in sites:
-            import pdb; pdb.set_trace();
+            # import pdb; pdb.set_trace();
             
             site_row = [site['identifier'], site['name'], site['region__identifier'], site['address'], site_dict[site.get('id')]['latitude'], site_dict[site.get('id')]['longitude'], site_dict[site.get('id')]['site_status']]
             
