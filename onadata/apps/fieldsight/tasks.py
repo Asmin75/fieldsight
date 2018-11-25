@@ -149,7 +149,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
         site_dict = {}
 
         site_objs = Site.objects.filter(project_id=137)
-
+        print "Checkpoint 1 started"
         for site_obj in site_objs:
             site_dict[site_obj.id] = {'visits':'','site_status':site_obj.site_status, 'latitude':site_obj.latitude,'longitude':site_obj.longitude}
         print "Checkpoint 1 finished"
@@ -157,7 +157,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
             site_visits_dict[site_visit['_id']]['visits'] = len(site_visit['visits'])
         print "Checkpoint 2 finished"
         for site in sites:
-            site_row = [site['identifier'], site['name'], site['region__identifier'], site['address'], site_dict[site.id]['latitude'], site_dict[site.id]['longitude'], site_dict[site.id]['site_status']]
+            site_row = [site['identifier'], site['name'], site['region__identifier'], site['address'], site_dict[site.get('id')]['latitude'], site_dict[site.get('id')]['longitude'], site_dict[site.get('id')]['site_status']]
 
             for stage in ss_index:
                 site_row.append(site.get(stage,0))
