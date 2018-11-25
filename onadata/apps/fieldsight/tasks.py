@@ -158,7 +158,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
         print "Checkpoint 2 finished"
         for site in sites:
             site_row = [site['identifier'], site['name'], site['region__identifier'], site['address'], site_dict[site.get('id')]['latitude'], site_dict[site.get('id')]['longitude'], site_dict[site.get('id')]['site_status']]
-
+            print site_dict[site.get('id')]
             for stage in ss_index:
                 site_row.append(site.get(stage, ""))
 
