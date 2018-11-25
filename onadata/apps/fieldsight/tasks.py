@@ -133,7 +133,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
         sites = Site.objects.filter(project_id=project.id).values('id','identifier', 'name', 'region__identifier', 'address').annotate(**query)
 
 
-        site_visits = settings.MONGO_DB.instances.aggregate([{"$match":{"fs_site": project.id}},  { "$group" : { 
+        site_visits = settings.MONGO_DB.instances.aggregate([{"$match":{"fs_project": project.id}},  { "$group" : { 
               "_id" :  { 
                 "fs_site": "$fs_site",
                 "date": { "$substr": [ "$start", 0, 10 ] }
