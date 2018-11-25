@@ -130,7 +130,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
         head_row.extend(["Site Visits", "Submission Count", "Flagged Submission", "Rejected Submission"])
         data.append(head_row)
         
-        sites = Site.objects.filter(project_id=project.id).values('id','identifier', 'name', 'region__identifier', 'address', 'latitude', 'longitude', 'site_status').annotate(**query)
+        sites = Site.objects.filter(project_id=project.id).values('id','identifier', 'name', 'region__identifier', 'address').annotate(**query)
 
 
         site_visits = settings.MONGO_DB.instances.aggregate([{"$match":{"fs_site": project.id}},  { "$group" : { 
