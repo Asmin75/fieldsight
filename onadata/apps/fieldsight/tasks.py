@@ -92,7 +92,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
         data=[]
         ss_index = []
         stages_rows = []
-        head_row = ["Site ID", "Name", "Region ID", "Latitude", "longitude", "Status"]
+        head_row = ["Site ID", "Name", "Region ID", "Address", "Latitude", "longitude", "Status"]
 
         query={}
         
