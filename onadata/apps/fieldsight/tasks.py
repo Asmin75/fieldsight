@@ -102,7 +102,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
             if len(sub_stages):
                 head_row.append("Stage :"+stage.name)
                 stages_rows.append("Stage :"+stage.name)
-
+                ss_index.append(str(""))
                 for ss in sub_stages:
                     head_row.append("Sub Stage :"+ss.name)
                     ss_index.append(str(ss.stage_forms.id))
@@ -160,7 +160,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
             site_row = [site['identifier'], site['name'], site['region__identifier'], site['address'], site_dict[site.get('id')]['latitude'], site_dict[site.get('id')]['longitude'], site_dict[site.get('id')]['site_status']]
 
             for stage in ss_index:
-                site_row.append(site.get(stage,0))
+                site_row.append(site.get(stage, ""))
 
             site_row.extend([site_dict[site.get('id')]['visits'], site['submission'], site['flagged'], site['rejected']])
 
