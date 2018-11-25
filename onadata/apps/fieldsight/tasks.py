@@ -151,7 +151,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
         site_objs = Site.objects.filter(project_id=project_id)
         print "Checkpoint 1 started"
         for site_obj in site_objs:
-            site_dict[site_obj.id] = {'visits':0,'site_status':site_obj.site_status, 'latitude':site_obj.latitude,'longitude':site_obj.longitude}
+            site_dict[site_obj.id] = {'visits':"0",'site_status':site_obj.site_status, 'latitude':site_obj.latitude,'longitude':site_obj.longitude}
         print "Checkpoint 1 finished"
         for site_visit in site_visits:
             try:
@@ -168,7 +168,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
                 site_row.append(site.get(stage, ""))
 
             site_row.extend([site_dict[site.get('id')]['visits'], site['submission'], site['flagged'], site['rejected']])
-            
+            print site_row
             data.append(site_row)
         print "Checkpoint 3 finished"
         p.save_as(array=data, dest_file_name="media/stage-report/{}_stage_data.xls".format(project.id))
