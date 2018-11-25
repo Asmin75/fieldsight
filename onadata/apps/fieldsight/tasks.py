@@ -155,7 +155,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
         print "Checkpoint 1 finished"
         for site_visit in site_visits:
             try:
-                site_dict[site_visit['_id']]['visits'] = len(site_visit['visits'])
+                site_dict[int(site_visit['_id'])]['visits'] = len(site_visit['visits'])
             except:
                 pass
         print "Checkpoint 2 finished"
