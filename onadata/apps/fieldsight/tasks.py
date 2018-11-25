@@ -160,7 +160,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
                 pass
         print "Checkpoint 2 finished"
         for site in sites:
-            # import pdb; pdb.set_trace();
+            import pdb; pdb.set_trace();
             
             site_row = [site['identifier'], site['name'], site['region__identifier'], site['address'], site_dict[site.get('id')]['latitude'], site_dict[site.get('id')]['longitude'], site_dict[site.get('id')]['site_status']]
             
