@@ -166,7 +166,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
                 site_row.append(site.get(stage, ""))
 
             site_row.extend([site_dict[site.get('id')]['visits'], site['submission'], site['flagged'], site['rejected']])
-
+            print site_row
             data.append(site_row)
         print "Checkpoint 3 finished"
         p.save_as(array=data, dest_file_name="media/stage-report/{}_stage_data.xls".format(project.id))
