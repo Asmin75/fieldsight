@@ -152,12 +152,12 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
 
         for site_obj in site_objs:
             site_dict[site_obj.id] = {'visits':'','site_status':site_obj.site_status, 'latitude':site_obj.latitude,'longitude':site_obj.longitude}
-
+        print "Checkpoint 1 finished"
         for site_visit in site_visits:
             site_visits_dict[site_visit['_id']]['visits'] = len(site_visit['visits'])
-
+        print "Checkpoint 2 finished"
         for site in sites:
-            site_row = [site['identifier'], site['name'], site['region__identifier'], site['address'], site_dict['site.id']['latitude'], site_dict['site.id']['longitude'], site_dict['site.id']['site_status']]
+            site_row = [site['identifier'], site['name'], site['region__identifier'], site['address'], site_dict[site.id]['latitude'], site_dict[site.id]['longitude'], site_dict[site.id]['site_status']]
 
             for stage in ss_index:
                 site_row.append(site.get(stage,0))
@@ -165,7 +165,7 @@ def generate_stage_status_report(task_prog_obj_id, project_id):
             site_row.extend([site_dict[site.get('id')]['visits'], site['submission'], site['flagged'], site['rejected']])
 
             data.append(site_row)
-
+        print "Checkpoint 3 finished"
         p.save_as(array=data, dest_file_name="media/stage-report/{}_stage_data.xls".format(project.id))
         xl_data = open("media/stage-report/{}_stage_data.xls".format(project.id), "rb")
         
